@@ -1,0 +1,357 @@
+#include "dkli.dkh"
+#!
+program
+{
+    #include "functions.dkh"
+    #include "serialize.dkh"
+
+    @ABSTRACT="abstract"
+    @ENTITY="entity"
+    @FIELD="field"
+    @INDEX="index"
+
+    @ALIAS_STRING="str,varchar"
+    @ALIAS_BOOL="boolean,bit"
+    @ALIAS_INT="integer"
+    @ALIAS_MEMO="text"
+
+    @TYPE_STRING="string"
+    @TYPE_INT="int"
+    @TYPE_DECIMAL="decimal"
+    @TYPE_BOOL="bool"
+    @TYPE_DATETIME="datetime"
+    @TYPE_DATE="date"
+    @TYPE_TIME="time"
+    @TYPE_MEMO="memo"
+
+    @DEFAULT_PRECISION=12
+    @DEFAULT_SCALE=4
+
+    merge_record::&r1,&r2
+    {
+        if isnull(r1) || isnull(r2) { return }
+        ref lc=list.create_from_fields(r1)
+
+        for i=0;i<@count(lc)
+        {
+            r2<list.str(lc,i)+"*">:@@(r1,"&"+list.str(lc,i))
+        }
+    }
+
+    addObjectsInherits::&cols, &indexes, parentName, &node, &abstracts
+    {
+        if @@(node,"$attributes/"+parentName)!=""
+        {
+            ref parent=@@(abstracts,"&"+@@(node,"$attributes/"+parentName))
+            if not(isnull(parent))
+            {
+                do merge_record(@@(parent,"&columns"),cols)
+                do merge_record(@@(parent,"&indexes"),indexes)
+            }
+            else { do rise_error(0,"El ascendente '"+@@(node,"$attributes/"+parentName)+"' no está definido") }
+            
+        }
+    }
+
+    createTableObject::&node,&abstracts
+    {
+        new nobj
+        {
+            @"name":@@(node,"attributes/name")
+        }
+        ref cols=record.create()
+        ref indexes=record.create()
+
+        do addObjectsInherits(cols, indexes, "parent", node,abstracts)
+        do addObjectsInherits(cols, indexes, "parent2", node,abstracts)
+        do addObjectsInherits(cols, indexes, "parent3", node,abstracts)
+        do addObjectsInherits(cols, indexes, "parent4", node,abstracts)
+        do addObjectsInherits(cols, indexes, "parent5", node,abstracts)
+        
+        
+        ref objectNodes=@@(node,"&nodes")
+        if not(isnull(objectNodes))
+        {
+            for i=0;i<@count(objectNodes)   
+            {
+                ref o=@item(objectNodes,i)
+                switch @@(o,"name")
+                {
+                    case @FIELD
+                    {
+                        cols<@@(o,"attributes/name")+"*">:createColumnObject(o)
+                    }
+                    case @INDEX
+                    {
+                        indexes<@@(o,"attributes/name")+"*">:createIndexObject(o)
+                    }
+                }
+            }
+        }
+
+        nobj<"columns*">:cols
+        nobj<"indexes*">:indexes
+
+        return nobj
+    }
+
+    createColumnObject:: &node
+    {
+        ref nobj=record.create()
+        nobj<"name">:@@(node,"attributes/name")
+
+        if @@(node,"$attributes/type")!=""
+        {
+            if isanyword(tolower(@@(node,"attributes/type")),@ALIAS_STRING) { nobj<"type">:@TYPE_STRING }
+            else if isanyword(tolower(@@(node,"attributes/type")),@ALIAS_BOOL) { nobj<"type">:@TYPE_BOOL }
+            else if isanyword(tolower(@@(node,"attributes/type")),@ALIAS_INT) { nobj<"type">:@TYPE_INT }
+            else if isanyword(tolower(@@(node,"attributes/type")),@ALIAS_MEMO) { nobj<"type">:@TYPE_MEMO }
+            else { nobj<"type">:tolower(@@(node,"attributes/type")) }
+        }
+
+        qualifiers=tolower(@@(node,"attributes/qualifier1")) + ","+tolower(@@(node,"attributes/qualifier2"))+ ","+tolower(@@(node,"attributes/qualifier3"))+ ","+tolower(@@(node,"attributes/qualifier4"))+ ","+tolower(@@(node,"attributes/qualifier5"))
+        if isanyword("unique",qualifiers) { nobj<"isUnique">:@true }
+        if isanyword("required",qualifiers) { nobj<"isRequired">:@true }
+        if isanyword("autoincrement",qualifiers) { nobj<"isAutoIncrement">:@true }
+        if isanyword("key",qualifiers) || isanyword("primarykey",qualifiers) 
+        { 
+            nobj<"isUnique">:@true 
+            nobj<"isRequired">:@true
+            nobj<"isKey">:@true
+        }
+
+        if isanyword("indexed",qualifiers) { nobj<"isIndexed">:@true }
+        if isanyword("indexed_desc",qualifiers) 
+        { 
+            nobj<"isIndexed">:@true 
+            nobj<"indexDesc">:@true 
+        }
+
+        if @@(nobj,"type")==@TYPE_STRING
+        {
+            nobj<"size">:@@(node,"#attributes/size")
+            if @@(nobj,"size")<1 { nobj<"size">:32 }
+        }
+        else if @@(nobj,"type")==@TYPE_DECIMAL
+        {
+            nobj<"precision">:@@(node,"#attributes/precision")
+            nobj<"scale">:@@(node,"#attributes/scale")
+
+            if @@(nobj,"precision")<1 { bobj<"precision">:@DEFAULT_PRECISION }
+            if @@(nobj,"scale")<1 { bobj<"scale">:@DEFAULT_SCALE }
+        }
+        else
+        {
+            if @@(node,"#attributes/size")!=0 { nobj<"size">:@@(node,"#attributes/size") }
+        }
+
+        if @@(node,"$attributes/reference")!="" { nobj<"reference">:@@(node,"$attributes/reference") }
+        if @@(node,"$attributes/keyfield")!="" { nobj<"keyfield">:@@(node,"$attributes/keyfield") }
+
+        return nobj
+
+    }
+
+    createIndexObject::&node
+    {
+        new nobj{}
+        nobj<"name">:@@(node,"$attributes/name")
+        if @@(node,"$attributes/type")!="" {nobj<"type">:@@(node,"$attributes/type") }
+        if @@(node,"$attributes/algorithm")!="" {nobj<"algorithm">:@@(node,"$attributes/algorithm") }
+
+        nobj<"columns*">:record.create()
+        ref objectNodes=@@(node,"&nodes")
+        if not(isnull(objectNodes))
+        {
+            for i=0;i<@count(objectNodes)   
+            {
+                ref o=@item(objectNodes,i)
+                if @@(o,"name")==@FIELD
+                {
+                    ref fo=record.create()
+                    fo<"name">:@@(o,"attributes/name")
+                    if tolower(@@(o,"attributes/order"))=="desc"
+                    {fo<"desc">:@true}
+
+                    nobj<"columns/"+@@(o,"attributes/name")+"*">: fo
+                }
+            }
+        }
+
+        return nobj
+    }
+
+
+    iterarColumnas::&schema, &func
+    {
+        //Itera todos los campos de todas las tablas
+        ref ts=@@(schema,"&tables")
+        ref lt=list.create_from_fields(ts)
+        for i=0;i<@count(lt)
+        {
+            ref t=@@(ts,"&"+list.str(lt,i))
+            ref cols=@@(t,"&columns")
+            ref lc=list.create_from_fields(cols)
+
+            for j=0;j<@count(lc)
+            {
+                ref c=@@(cols,"&"+list.str(lc,j))
+                if not(isnull(func)) 
+                { 
+                    that func (schema,t,c ) 
+                }
+            }
+        }
+    }
+
+    get_pkfield::&schema, table
+    {
+        ref t=@@(schema,"&tables/"+table)
+
+        if isnull(t) { return @null }
+
+        ref cols=@@(t,"&columns")
+        ref lc=list.create_from_fields(cols)
+
+        for j=0;j<@count(lc)
+        {
+            ref c=@@(cols,"&"+list.str(lc,j))
+            if @@(c,"#isKey") { return c }
+        }
+
+        return @null
+    }
+
+    fixReference::&schema, &table, &column
+    {
+        //Deduce los atributos faltantes para las referencias que se indicaron incompletas
+        //p.e. No se indicó el campo clave de la entidad referenciada, el tipo del campo o ambas
+
+        if @@(column,"$reference")=="" {return }
+
+        if isnull(@@(schema,"&tables/"+@@(column,"$reference"))) { do rise_error(0,"La tabla '"+@@(column,"$reference")+"' a la que se hace referencia en '"+@@(table,"name")+"' no existe en el modelo.")}
+
+        ref col_ref=@null
+        if @@(column,"$keyfield")==""
+        {
+            //Deducir el nombre del campo al que hace referencia
+            ref col_ref=get_pkfield(schema,@@(column,"$reference"))
+            if isnull(col_ref)
+            {
+                do rise_error(0,"No se puede resolver o la columna referenciada de la tabla '"+@@(column,"$reference")+"' desde la tabla '"+@@(table,"name")+"' porque no tiene una clave primaria indicada.")
+            }
+            column<"keyfield">:@@(col_ref,"name")
+        }
+        else
+        {
+            ref col_ref=@@(schema,"&tables/"+@@(column,"$reference")+"/columns/"+@@(column,"$keyfield"))
+            if isnull(col_ref)
+            {
+                do rise_error(0,"La columna '"+@@(column,"$keyfield")+"' referenciada de la tabla '"+@@(column,"$reference")+"' desde la tabla '"+@@(table,"name")+"' no existe.")
+            }
+        }
+
+        if @@(column,"$type")==""
+        {
+            column<"type">:@@(col_ref,"type")
+            if field.exist(col_ref,"size") { column<"size">:@@(col_ref,"#size") }
+            if field.exist(col_ref,"precision") { column<"precision">:@@(col_ref,"#precision") }
+            if field.exist(col_ref,"scale") { column<"scale">:@@(col_ref,"#scale") }
+        }
+    }
+    
+    fixColumns::&schema
+    {
+        point f to fixReference
+
+        do iterarColumnas(schema, f)        
+    }
+
+    /*  Punto de entrada del programa
+        Argumentos de línea de comando: 
+            dkl dbgen src=origen fmt=formato_salida out=salida
+            - origen Es un archivo (incluyendo ruta) dkl con la definición de la estructura
+            - formato de salida Es el nombre de un programa existente que produce sql o la etiqueta 'json_schema', si se omite se asume 'json_schema'
+              para el formato intermedio
+            - salida Es un archivo en el que se escribirá el resultado o bien si se omite, se imprime en la consola
+        
+        Ejemplos:
+         dkl dbgen src=mibasededatos.dkl fmt=mysql out=script.sql
+    */
+
+    ref args=commandline("=")
+
+    if not(file.exists(@@(args,"$src")))
+        {do rise_error(0,"No existe el archivo de origen o no se ha indicado el parámetro")}
+
+    xml=runscript(@@(args,"src"))
+
+    ref obj=parse.xmlStr(xml)
+
+    ref abstracts=record.create()
+    ref tables=record.create()
+
+    ref objectNodes=@@(obj,"&nodes")
+
+    if isnull(objectNodes) { do rise_error("No hay objetos de bases de datos definidos") }
+
+    //Recuperar las abstracciones
+    for i=0;i<@count(objectNodes)   
+    {
+        ref o=@item(objectNodes,i)
+        if @@(o,"name")==@ABSTRACT
+        {
+            abstracts<@@(o,"attributes/name")+"*">:createTableObject(o,abstracts)
+        }
+    }
+
+    //Recuperar las entidades
+    for i=0;i<@count(objectNodes)   
+    {
+        ref o=@item(objectNodes,i)
+        if @@(o,"name")==@ENTITY
+        {
+            tables<@@(o,"attributes/name")+"*">:createTableObject(o,abstracts)
+        }
+    }
+
+    new schema
+    {
+        @"name":@@(obj,"$attributes/name")
+        @"tables*":tables
+    }
+
+    do fixColumns(schema)
+
+    if @@(args,"$fmt")=="" || @@(args,"$fmt")=="json_schema"
+    {
+        output=to.json(schema)
+    }
+    else
+    {
+        new context
+        {
+            @"args*":args
+            @"schema*":schema
+            @"output":"standard" //Si el programa cambia este valor a 'text', el resultado estará en el miembro 'text'
+        }
+
+        output=runscript(@@(args,"$fmt"),"context",context)
+
+        switch @@(context,"$output")
+        {
+            case "text"
+            {
+                output=@@(context,"$text")
+            }
+        }
+    }
+    
+
+    fout=@@(args,"$out")
+
+    if (fout=="")
+        { do print(output)}
+    else
+    { do file.wtext(fout,output) }
+}

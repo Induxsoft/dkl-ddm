@@ -1,0 +1,66 @@
+#def model(name) "model"
+#pattern model "model '@name'"
+
+#def abstract(name) "abstract"
+#pattern abstract "abstract '@name'"
+
+#def enum(name) "enum"
+#pattern enum "enum '@name'"
+#pattern enum "enum '@name' key:'@keyfield' text:'@textfield'"
+#pattern enum "enum '@name' key:'@keyfield' '$type' text:'@textfield'"
+
+#def enumItem(key, text) "item"
+
+#pattern enumItem "@'@text':'*key'"
+
+#def entity(name) "entity"
+#pattern entity "entity '@name'"
+#pattern entity "entity '@name' : '@parent'"
+#pattern entity "entity '@name' : '@parent' '@parent2'"
+#pattern entity "entity '@name' : '@parent' '@parent2' '@parent3'"
+#pattern entity "entity '@name' : '@parent' '@parent2' '@parent3' '@parent4'"
+#pattern entity "entity '@name' : '@parent' '@parent2' '@parent3' '@parent4' '@parent5'"
+
+#def field	"field"
+#pattern field 	"@'@name' '$type'"
+#pattern field 	"@'@name' '$type' '$qualifier1'"
+#pattern field 	"@'@name' '$type' '$qualifier1' '$qualifier2'"
+#pattern field 	"@'@name' '$type' '$qualifier1' '$qualifier2' '$qualifier3'"
+
+#pattern field 	"@'@name' '$type'('#size')"
+#pattern field 	"@'@name' '$type'('#size') '$qualifier1'"
+#pattern field 	"@'@name' '$type'('#size') '$qualifier1' '$qualifier2'"
+#pattern field 	"@'@name' '$type'('#size') '$qualifier1' '$qualifier2' '$qualifier3'"
+
+#pattern field 	"@'@name' '$type'('#precision', '#scale')"
+#pattern field 	"@'@name' '$type'('#precision', '#scale') '$qualifier1'"
+#pattern field 	"@'@name' '$type'('#precision', '#scale') '$qualifier1' '$qualifier2'"
+#pattern field 	"@'@name' '$type'('#precision', '#scale') '$qualifier1' '$qualifier2' '$qualifier3'"
+
+
+#pattern field 	"@'@name' list: '@list'"
+#pattern field 	"@'@name' list: '@list' ['@keyfield']"
+
+#pattern field 	"@'@name' enum: '@enum'"
+#pattern field 	"@'@name' enum: '@enum' '$qualifier1'"
+#pattern field 	"@'@name' enum: '@enum' '$qualifier1' '$qualifier2'"
+#pattern field 	"@'@name' enum: '@enum' '$qualifier1' '$qualifier2' '$qualifier3'"
+
+#pattern field 	"@'@name' ref: '@reference'"
+#pattern field 	"@'@name' ref: '@reference' '$qualifier1'"
+#pattern field 	"@'@name' ref: '@reference' '$qualifier1' '$qualifier2'"
+#pattern field 	"@'@name' ref: '@reference' '$qualifier1' '$qualifier2' '$qualifier3'"
+
+#pattern field 	"@'@name' '$type' ref: '@reference' ['@keyfield']"
+#pattern field 	"@'@name' '$type' ref: '@reference' ['@keyfield'] '$qualifier1'"
+#pattern field 	"@'@name' '$type' ref: '@reference' ['@keyfield'] '$qualifier1' '$qualifier2'"
+#pattern field 	"@'@name' '$type' ref: '@reference' ['@keyfield'] '$qualifier1' '$qualifier2' '$qualifier3'"
+
+#def index(name) "index"
+#pattern index "index '@name'"
+#pattern index "index '@name' '$type'"
+#pattern index "index '@name' '$type' '$algorithm'"
+
+#def indexField "field"
+#pattern indexField "field '@name'"
+#pattern indexField "field '@name' '$order'"
