@@ -122,7 +122,7 @@ program
     create_table::&table
     {
         table_name=get_name(table)        
-        sql= "CREATE TABLE `"+table_name+"(`\r\n"
+        sql= "CREATE TABLE `"+table_name+"`(\r\n"
 
         ref lf=list.create_from_fields(@@(table,"&columns"))
         for i=0;i<@count(lf)
