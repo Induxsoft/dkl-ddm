@@ -115,7 +115,7 @@ program
         if isanyword("autoincrement",qualifiers) { nobj<"isAutoIncrement">:@true }
         if isanyword("key",qualifiers) || isanyword("primarykey",qualifiers) 
         { 
-            nobj<"isUnique">:@true 
+            //nobj<"isUnique">:@true 
             nobj<"isRequired">:@true
             nobj<"isKey">:@true
         }
