@@ -140,7 +140,7 @@ model "CRM Sales"
         @"email2" string(100)
         @"fnacimiento" date 
         @"msn" string(100)
-        @"notas" text
+        @"notas" memo
         @"skype" string(100)
         @"sys_guid_contacto" string(32)
         @"tel_casa" string(80)
@@ -170,7 +170,7 @@ model "CRM Sales"
         @"email" string(100)
         @"fax" string(80)
         @"nomcomercial" string(150)
-        @"notas" text
+        @"notas" memo
         @"sys_guid_cliente" string(32)
         @"sys_guid_otro" string(32)
         @"sys_guid_proveedor" string(32)
@@ -183,24 +183,6 @@ model "CRM Sales"
         @"iciudad" int ref:"ciudad" ["sys_pk"]
         @"iejecutivo" int ref:"agente" ["sys_pk"]
         @"nacionalidad" int ref:"pais" ["sys_pk"]
-
-        @"uf_sector" int(11)
-        @"uf_minorista" bit(1)
-        @"uf_mayoreo" bit(1)
-        @"uf_multinivel" bit(1)
-        @"uf_telemarketing" bit(1)
-        @"uf_franquicia" bit(1)
-        @"uf_parcialidades" bit(1)
-        @"uf_pproductos" string(50)
-        @"uf_alocal" bit(1)
-        @"uf_aregional" bit(1)
-        @"uf_anacional" bit(1)
-        @"uf_ainternacional" bit(1)
-        @"uf_tamano" bit(1)
-        @"uf_sucursales" int(11)
-        @"uf_empleados" int(11)
-        @"uf_grande" bit(1)
-        @"uf_moral" bit(1)
     }
 
     entity "sales_pipeline_stage" : "induxsoftTableModel"
@@ -233,6 +215,7 @@ tipo es alguna de los siguientes:
 * time
 * decimal(precisión, escala)
 * string(tamaño)
+* memo
 
 Los atributos (son opcionales y) pueden ser los siguientes:
 
