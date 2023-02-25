@@ -77,20 +77,127 @@ model "CRM Sales"
         @"userid" string required unique
         @"username" string(250) required
     }
-    
-    entity "agente" : "devkronTable"
+
+    entity "domicilio" : "induxsoftTableModel"
+    {
+        @"codPos" string 
+    }
+    entity "agente" : "induxsoftTableModel"
     {
         @"codigo" string(15) required unique
         @"nombre" string(150) required unique
-        @"iuser" int ref:"tuser" ["sys_pk"] unique
+        @"uf_iuser" int ref:"tuser" ["sys_pk"] unique
+
+        @"codnomina" string(50)
+        @"email" string(50)
+        @"notas" string(2048)
+        @"pcomision" decimal(18,8)
+        @"telefono" string(150)
+        @"domicilio1" int ref:"domicilio" ["sys_pk"]
+        @"uf_sys_baja" bool
+        
         index "indice1" unique
         {
-            field "codigo" desc
-            field "nombre"
+            field "uf_iuser"
+            field "nombre" desc
         }
     }
-    
-    entity "sales_pipeline_stage" : "devkronTable"
+
+    entity "cmdedocivil" : "induxsoftEnumModel" { }
+    entity "cmdsexo" : "induxsoftEnumModel" { }
+
+    entity "ctpersona" : "induxsoftTableModel"
+    {
+        @"descripcion" string(50)
+    }
+    entity "ciudad" : "induxsoftTableModel"
+    {
+        @"codigo" string(8)
+    }
+    entity "pais" : "induxsoftTableModel"
+    {
+        @"codigo" string(8)
+    }
+    entity "persona" : "induxsoftTableModel"
+    {
+        @"nombre" string(150) required
+        // @"telefono" string(15)
+        @"email" string(100)
+
+        @"apellido1" string(50) required
+        @"apellido2" string(50)
+        @"autoid" string(150)
+        @"codigo" string(32)
+        @"codpostal" string(10)
+        @"colonia" string(100)
+        @"domicilio" string(255)
+        @"email2" string(100)
+        @"fnacimiento" date 
+        @"msn" string(100)
+        @"notas" text
+        @"skype" string(100)
+        @"sys_guid_contacto" string(32)
+        @"tel_casa" string(80)
+        @"tel_movil" string(80)
+        @"tel_trabajo" string(80)
+        @"tratamiento" string(10)
+        @"tel_movil" string(80)
+        @"edocivil" int ref:"cmdedocivil" ["id"] 
+        @"sexo" int ref:"cmdsexo" ["id"]
+        @"icategoria" int ref:"ctpersona" ["sys_pk"] required
+        @"iciudad" int ref:"ciudad" ["sys_pk"]
+        @"iejecutivo" int ref:"agente" ["sys_pk"]
+        @"nacionalidad" int ref:"pais" ["sys_pk"]
+    }
+
+    entity "ctorganizacion" : "induxsoftTableModel"
+    {
+        @"descripcion" string(50)
+    }
+    entity "organizacion" : "induxsoftTableModel"
+    {
+        @"nombre" string(150) unique required
+
+        @"codigo" string(32)
+        @"codpostal" string(10)
+        @"domicilio" string(255)
+        @"email" string(100)
+        @"fax" string(80)
+        @"nomcomercial" string(150)
+        @"notas" text
+        @"sys_guid_cliente" string(32)
+        @"sys_guid_otro" string(32)
+        @"sys_guid_proveedor" string(32)
+        @"tel1" string(80)
+        @"tel2" string(80)
+        @"tel3" string(80)
+        @"website" string(150)
+
+        @"icategoria" int ref:"ctorganizacion" ["sys_pk"] required
+        @"iciudad" int ref:"ciudad" ["sys_pk"]
+        @"iejecutivo" int ref:"agente" ["sys_pk"]
+        @"nacionalidad" int ref:"pais" ["sys_pk"]
+
+        @"uf_sector" int(11)
+        @"uf_minorista" bit(1)
+        @"uf_mayoreo" bit(1)
+        @"uf_multinivel" bit(1)
+        @"uf_telemarketing" bit(1)
+        @"uf_franquicia" bit(1)
+        @"uf_parcialidades" bit(1)
+        @"uf_pproductos" string(50)
+        @"uf_alocal" bit(1)
+        @"uf_aregional" bit(1)
+        @"uf_anacional" bit(1)
+        @"uf_ainternacional" bit(1)
+        @"uf_tamano" bit(1)
+        @"uf_sucursales" int(11)
+        @"uf_empleados" int(11)
+        @"uf_grande" bit(1)
+        @"uf_moral" bit(1)
+    }
+
+    entity "sales_pipeline_stage" : "induxsoftTableModel"
     {
         @"ref_pipeline" ref:"sales_pipeline" required
         @"sequence" int required    //El número de secuencia de las etapas en el pipeline
@@ -99,7 +206,7 @@ model "CRM Sales"
         @"stuck_in_days" int
     }
 
-    entity "sales_pipeline" : "devkronTable"
+    entity "sales_pipeline" : "induxsoftTableModel"
     {
         @"name" string(50)
         @"probability" bool
@@ -107,6 +214,8 @@ model "CRM Sales"
 ```
 
 ### Definición de columnas
+Las columnas se definen dentro del cuerpo de las entidades o abstracciones.
+
 La sintaxis es: ```@"nombre_columna" tipo atributo1 atributo2 atributo3```
 
 tipo es alguna de los siguientes:
@@ -134,8 +243,49 @@ Sintaxis simplificada de definición de referencia que dejará al generador la i
 Sintaxis completa en donde explícitamente se indica el tipo de la columna y el nombre del campo clave referido
 ```@"nombre_columna" tipo ref: "entidad_referenciada" [campo_clave_referido]```
 
+### Definición de índices
+Los índices se definen dentro del cuerpo de las entidades o abstracciones
 
-## Generación de código
+```
+  index "indice1" unique //modificador opcional unique para indicar que es un índice de clave única
+  {
+    field "campo1"
+    field "campo2" desc // Modificador de orden del campo del índice
+  }
+```
+
+## Instalación de las herramientas de DDM
+Simplemente coloque en la carpeta de binarios de Devkron los archivos de la carpeta src de este repositorio.
+
+Los archivos incluidos son:
+
+* ddm.dkh - Las definiciones de sintaxis
+* dbgen.dkl - El generador de código de primer paso
+* gen_mysql.dkl - Generador de segundo paso para MySQL
+
+## Uso de las herramientas
+
+```
+dkl dbgen "src=archivo_fuente" "fmt=programa_generador" "out=archivo_salida"
+```
+
+* archivo_fuente es la ruta y el nombre de un archivo en dialecto DDM
+* programa_generador (opcional) es el nombre del programa generador de segundo paso (en este momento únicamente gen_mysql.dkl), si este parámetro se omite, se producirá como salida un objeto JSON que representa la estructura como resultado de la generación de primer paso.
+* archivo_salida (opcional) es el archivo en donde se escribirán los resultados de la generación. 
+
+Ejemplo de línea de comando para generar código para mySQL
+
+```
+dkl dbgen "src=modelo.dkl" "fmt=gen_mysql.dkl" "out=script.sql"
+```
+
+###
+Acerca del proceso de generación
+
+1. EL modelo es validado sintácticamente de acuerdo a los patrones establecidos en ddm.dkh
+2. El modelo es transformado a JSON (primer paso de generación)
+3. El modelo descrito en JSON produce SQL o cualquier otra salida (segundo paso de generación)
+
 
 
 
