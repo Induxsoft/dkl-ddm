@@ -260,7 +260,7 @@ dkl dbgen "src=archivo_fuente" "fmt=programa_generador" "out=archivo_salida"
 
 * archivo_fuente es la ruta y el nombre de un archivo en dialecto DDM
 * programa_generador (opcional) es el nombre del programa generador de segundo paso (en este momento únicamente gen_mysql.dkl), si este parámetro se omite, se producirá como salida un objeto JSON que representa la estructura como resultado de la generación de primer paso.
-* archivo_salida (opcional) es el archivo en donde se escribirán los resultados de la generación. 
+* archivo_salida (opcional) es el archivo en donde se escribirán los resultados de la generación, si se omite el resultado se imprimirá como salida de la consola. 
 
 Ejemplo de línea de comando para generar código para mySQL
 
