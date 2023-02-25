@@ -72,6 +72,12 @@ model "CRM Sales"
         @"const" string(150)
     }
 
+    entity "tabla_solita" //Una tabla de que no desciende de ninguna abstracción
+    {
+      @"campo1" string(10) key 
+      @"campo2" int
+    }
+    
     entity "tuser" : "induxsoftTableModel"
     {
         @"userid" string required unique
