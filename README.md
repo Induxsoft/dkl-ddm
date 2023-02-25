@@ -4,8 +4,8 @@ Dialecto y herramientas para diseñar y generar estructuras de bases de datos re
 ## Contexto
 Al definir modelos de bases de datos relacionales generalmente se emplean dos clases de herramientas:
 
-a) CASE con una pesada interfaz de usuario y que requiere mucho trabajo para detallar a través de diagramas, adecuadamente los objetos y poder generar a partir de ellos el SQL DDL o bien,
-b) directamente SQL DDL o una aplicación de DBA con interfaz de usuario que lo genere con la desventaja del fuerte acoplamiento al motor de bases de datos.
+* CASE con una pesada interfaz de usuario y que requiere mucho trabajo para detallar a través de diagramas, adecuadamente los objetos y poder generar a partir de ellos el SQL DDL o bien,
+* directamente SQL DDL o una aplicación de DBA con interfaz de usuario que lo genere con la desventaja del fuerte acoplamiento al motor de bases de datos.
 
 ## Necesidad
 Una manera simple de definir estructuras relacionales a través de archivos de texto (código fuente) que no requiera herramientas con interfaz de usuario, 
