@@ -5,6 +5,7 @@ program
     #include "functions.dkh"
     #include "serialize.dkh"
 
+    @MODEL="model"
     @ABSTRACT="abstract"
     @ENTITY="entity"
     @FIELD="field"
@@ -267,6 +268,29 @@ program
         do iterarColumnas(schema, f)        
     }
 
+    addObjects::&n, &nodes
+    {
+        for i=0;i<@count(nodes)   
+        {
+            ref o=@item(nodes,i)
+            switch @@(o,"name")
+            {
+                case @MODEL
+                {
+                    do addObjects(n,@@(list.obj(nodes,i),"&nodes"))
+                }
+                case @ABSTRACT
+                {
+                    do list.add(n,list.obj(nodes,i))
+                }
+                case @ENTITY
+                {
+                    do list.add(n,list.obj(nodes,i))
+                }
+            }
+        }
+    }
+
     /*  Punto de entrada del programa
         Argumentos de línea de comando: 
             dkl dbgen src=origen fmt=formato_salida out=salida
@@ -291,9 +315,13 @@ program
     ref abstracts=record.create()
     ref tables=record.create()
 
-    ref objectNodes=@@(obj,"&nodes")
+    ref nodes=@@(obj,"&nodes")
 
-    if isnull(objectNodes) { do rise_error("No hay objetos de bases de datos definidos") }
+    if isnull(nodes) { do rise_error("No hay objetos de bases de datos definidos") }
+
+    ref objectNodes=list.create()
+    //Recuperar definiciones en inclusiones de sub-modelos
+    do addObjects(objectNodes,nodes)
 
     //Recuperar las abstracciones
     for i=0;i<@count(objectNodes)   

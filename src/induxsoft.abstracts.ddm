@@ -1,0 +1,23 @@
+﻿#include "ddm.dkh"
+
+model "Induxsoft abstracts"
+{
+    abstract "TableModel"
+    {
+        @"sys_pk" int key autoincrement
+        @"sys_guid" string(32) unique required
+        @"sys_dtcreated" datetime required
+        @"sys_timestamp" datetime required
+        @"sys_recver" int
+        @"sys_deleted" bool
+        @"sys_lock" int
+        @"sys_info" string(32)
+        @"sys_user" string(32)
+    }
+
+    abstract "EnumModel"
+    {
+        @"id" int key 
+        @"const" string(150)
+    }
+}
