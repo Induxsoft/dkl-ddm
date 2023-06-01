@@ -1,0 +1,17 @@
+#include "dkli.dkh"
+#!
+program
+{
+    #include "ddm.sqlserver.dkl"
+    
+    ref sentences=schema2sqlserver(@@(@context,"&schema"))
+    ref buffer=text.create()
+    
+    for i=0;i<@count(sentences)
+    {
+        do text.say(buffer,list.str(sentences,i))
+    }
+
+    @context<"output">:"text"
+    @context<"text">:text.get(buffer)
+}

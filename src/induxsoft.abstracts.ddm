@@ -4,15 +4,18 @@ model "Induxsoft abstracts"
 {
     abstract "TableModel"
     {
-        @"sys_pk" int key autoincrement
+        @"sys_pk" int key required autoincrement
         @"sys_guid" string(32) unique required
         @"sys_dtcreated" datetime required
         @"sys_timestamp" datetime required
+        @"sys_info" string(32)
+        @"sys_user" string(32)
+        @"sys_lastuser" string(32)
+        @"sys_exported" bool
+        @"sys_dtexported" datetime
         @"sys_recver" int
         @"sys_deleted" bool
         @"sys_lock" int
-        @"sys_info" string(32)
-        @"sys_user" string(32)
     }
 
     abstract "EnumModel"
