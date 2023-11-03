@@ -251,11 +251,14 @@ Los archivos incluidos son:
 * ddm.dkh - Las definiciones de sintaxis
 * dbgen.dkl - El generador de código de primer paso
 * gen_mysql.dkl - Generador de segundo paso para MySQL
+* gen_sqlserver.dkl - Generador de segundo paso para SQLServer
 
 ## Uso de las herramientas
 
 ```
 dkl dbgen "src=archivo_fuente" "fmt=programa_generador" "out=archivo_salida"
+
+dkl dbgen "a=archivo_fuente_A" "b=archivo_fuente_B" "c=archvo_c" "fmt=programa_generador" "out=archivo_salida"
 ```
 
 * archivo_fuente es la ruta y el nombre de un archivo en dialecto DDM
@@ -274,8 +277,3 @@ Acerca del proceso de generación
 1. EL modelo es validado sintácticamente de acuerdo a los patrones establecidos en ddm.dkh
 2. El modelo es transformado a JSON (primer paso de generación)
 3. El modelo descrito en JSON produce SQL o cualquier otra salida (segundo paso de generación)
-
-
-
-
-
