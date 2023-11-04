@@ -287,4 +287,247 @@ module "ddm.json"
             }
         }
     }
+
+    //* ======================================== [ ... ] ========================================
+
+    /**
+    * array a Estructura DDM (Json)
+    * array b Estructura DDM (Json)
+    * list<string> filter Lista de tablas sobre las que hay que comprobar compatibilidad (omitible)
+    */
+    function ddm.compareTables(a,b,filter)
+    {
+        ref tables_a = @@(a,"&tables")
+        ref tables_b = @@(b,"&tables")
+
+        ref CommonList = list.create()
+        ref NewList = list.create()
+        ref FilteredList = list.create()
+
+        go foreach.fobj(key:tbl) with(tables_b)
+        {
+            if field.exist(tables_a,tbl) {
+                do list.add(CommonList,tbl)
+            } else {
+                do list.add(NewList,tbl)
+            }
+        }
+
+        if not(isnull(filter)) {
+            commom_json = to.json(CommonList)
+            go foreach.lstr(value:fil) with(filter)
+            {
+                if contains(commom_json,fil) { do list.add(FilteredList,fil) }
+            }
+        }
+
+        new result
+        {
+            @"common*": CommonList
+            @"new*": NewList
+            @"filtered*": FilteredList
+        }
+
+        return result
+    }
+
+    function ddm.getCompType(t1,t2)
+    {
+        if t1 == t2 { return t1 }
+
+        ref cfg = _null()
+        if isset("@CompTypeConfig") { ref cfg = @CompTypeConfig }
+        else 
+        {
+            text json
+            {$'
+            [
+                {"t1":"string", "t2":"memo", "use":"memo"},
+                {"t1":"int", "t2":"decimal", "use":"decimal"},
+                {"t1":"date", "t2":"datetime", "use":"datetime"},
+            ]
+            '}
+            ref cfg = from.json(json)
+        }
+        
+        go foreach.lobj(value:obj) with(cfg) {
+            if (@@(obj,"$t1") == t1 && @@(obj,"$t2") == t2) || (@@(obj,"$t1") == t2 && @@(obj,"$t2") == t1) { return @@(obj,"$use") }
+        }
+
+        return ""
+    }
+
+    /**
+    * array a Estructura DDM (Json)
+    * array b Estructura DDM (Json)
+    * string table Nombre de la tabla al que se compararan sus columnas.
+    */
+    function ddm.compareColumns(a,b,table)
+    {
+        ref columns_a = @@(a,"&tables/"+table+"/columns")
+        ref columns_b = @@(b,"&tables/"+table+"/columns")
+        compatible = @true
+
+        ref FieldsA = list.create_from_fields(columns_a)
+        ref FieldsB = list.create_from_fields(columns_b)
+        
+        ref UnifiedList = FieldsA
+        go foreach.lstr(value:field) with(FieldsB) {
+            if not(field.exist(columns_a,field)) { do list.add(UnifiedList,field) }
+        }
+
+        ref ActionList = list.create()
+        go foreach.lstr(value:field) with(UnifiedList)
+        {
+            new ComparedColumn
+            {
+                @"table": table
+                @"column": field
+                @"action": ""
+            }
+
+            ref column_a = @@(columns_a,"&"+field)
+            ref column_b = @@(columns_b,"&"+field)
+
+            if isnull(column_a) && (not(@@(column_b,"#isRequired")) && not(@@(column_b,"#isKey")))
+            {
+                ComparedColumn<"action"> : "new"
+                ComparedColumn<"new*"> : column_b
+            }
+            else if isnull(column_a) && (@@(column_b,"#isRequired") || @@(column_b,"#isKey"))
+            {
+                compatible = @false
+                ComparedColumn<"action"> : "incompatible"
+                ComparedColumn<"message"> : "No se puede añadir el campo porque tiene establecido el atributo 'required' o es 'PrimaryKey'."
+            }
+            else if not(isnull(column_a)) && not(isnull(column_b))
+            {
+                same_type = (@@(column_a,"$type") == @@(column_b,"$type"))
+                same_precision = (@@(column_a,"#precision") == @@(column_b,"#precision"))
+                same_scale = (@@(column_a,"#scale") == @@(column_b,"#scale"))
+                same_size = (@@(column_a,"#size") == @@(column_b,"#size"))
+                both_unique = (@@(column_a,"#isUnique") == @@(column_b,"#isUnique"))
+                both_require = (@@(column_a,"#isRequired") == @@(column_b,"#isRequired"))
+                both_key = (@@(column_a,"#isKey") == @@(column_b,"#isKey"))
+                both_autoincrement = (@@(column_a,"#isAutoIncrement") == @@(column_b,"#isAutoIncrement"))
+
+                if same_type && same_precision && same_scale && same_size && both_require && both_unique && both_key && both_autoincrement
+                {
+                    ComparedColumn<"action"> : "nothing"
+                }
+                else if same_type && same_precision && same_scale && same_size 
+                {
+                    compatible = @false
+                    
+                    ComparedColumn<"action"> : "incompatible"
+                    message = ""
+                    if not(both_unique) { message = "El valor del atributo 'unique' es diferente en ambos modelos de tabla." }
+                    if not(both_require) { message = "El valor del atributo 'required' es diferente en ambos modelos de tabla." }
+                    if not(both_key) { message = "El valor del atributo 'key' es diferente en ambos modelos de tabla." }
+                    ComparedColumn<"message"> : message
+                }
+                else 
+                {
+                    comp_type = ddm.getCompType(@@(column_a,"$type"), @@(column_b,"$type"))
+
+                    ComparedColumn<"action"> : "change"
+                    if comp_type == ""
+                    {
+                        compatible = @false
+                        ComparedColumn<"action"> : "incompatible"
+                        ComparedColumn<"message"> : "No se encontro una definición para los tipos de datos. [cur <> new -> comp]"
+                    }
+
+                    new change
+                    {
+                        @"curr_type": @@(column_a,"$type")
+                        @"new_type": @@(column_b,"$type")
+                        @"comp_type": comp_type
+                    }
+
+                    switch comp_type
+                    {
+                        case "string"
+                        {
+                            change<"curr_size"> : @@(column_a,"#size")
+                            change<"new_size"> : @@(column_b,"#size")
+
+                            change<"comp_size"> : if(@@(column_a,"#size") > @@(column_b,"#size"), @@(column_a,"#size"), @@(column_b,"#size"))
+                            break
+                        }
+                        case "decimal"
+                        {
+                            change<"curr_precision"> : @@(column_a,"#precision")
+                            change<"curr_scale"> : @@(column_a,"#scale")
+
+                            change<"new_precision"> : @@(column_b,"#precision")
+                            change<"new_scale"> : @@(column_b,"#scale")
+
+                            int32 = 10 // Valor Maximo: 2.147.483.647
+                            max_precision = if(@@(column_a,"#precision") > @@(column_b,"#precision"), @@(column_a,"#precision"), @@(column_b,"#precision"))
+                            max_scale = if(@@(column_a,"#scale") > @@(column_b,"#scale"), @@(column_a,"#scale"), @@(column_b,"#scale"))
+
+                            if same_type { max_precision = (max_precision + max_scale) }
+                            else { max_precision = (int32 + max_scale) }
+
+                            change<"comp_precision"> : max_precision
+                            change<"comp_scale"> : max_scale
+                            break
+                        }
+                        default
+                        {
+                            if @@(column_a,"#size") != 0 || @@(column_b,"#size") != 0
+                            {
+                                change<"curr_size"> : @@(column_a,"#size")
+                                change<"new_size"> : @@(column_b,"#size")
+
+                                change<"comp_size"> : if(@@(column_a,"#size") > @@(column_b,"#size"), @@(column_a,"#size"), @@(column_b,"#size"))
+                            }
+                            break
+                        }
+                    }
+
+                    ComparedColumn<"change*"> : change
+                }
+            }
+
+            do list.add(ActionList,ComparedColumn)
+        }
+
+        new result
+        {
+            @"compatible": compatible
+            @"actions*": ActionList
+        }
+
+        return result
+    }
+
+    function ddm.analyze(srcA,srcB,filter)
+    {
+        ref a = from.json(file.rtext(srcA))
+        ref b = from.json(file.rtext(srcB))
+
+        ref UnifiedTables = ddm.compareTables(a,b,filter)
+        ref ComparedColumns = list.create()
+
+        ref commonTables = @@(UnifiedTables,"&filtered")
+
+        if isnull(commonTables) { ref commonTables = @@(UnifiedTables,"&common") }
+        if list.count(commonTables) == 0 { ref commonTables = @@(UnifiedTables,"&common") }
+
+        go foreach.lstr(value:tabla) with(commonTables)
+        {
+            ref cc = ddm.compareColumns(a,b,tabla)
+            do list.add(ComparedColumns,cc)
+        }
+
+        new result
+        {
+            @"analysis*": UnifiedTables
+            @"compatibility*": ComparedColumns
+        }
+
+        return result
+    }
 }

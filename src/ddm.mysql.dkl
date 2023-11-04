@@ -93,12 +93,14 @@ program
     {
         switch @@(field,"type")
         {
-            case "bool" { return "BOOL"}
-            case "int" { return "INT"}
-            case "memo" { return "TEXT"}
-            case "datetime" { return "DATETIME"}
-            case "time" { return "TIME"}
-            case "date" { return "DATE"}
+            case "bool" { return "BOOL" }
+            case "int" { return "INT" }
+            case "memo" { return "TEXT" }
+            case "mmemo" { return "MEDIUMTEXT" }
+            case "lmemo" { return "LONGTEXT" }
+            case "datetime" { return "DATETIME" }
+            case "time" { return "TIME" }
+            case "date" { return "DATE" }
             case "decimal" { return "DECIMAL("+@@(field,"$precision")+","+@@(field,"$scale")+")" }
             case "string" 
             { 
@@ -134,28 +136,131 @@ program
             if @@(table,"#columns/"+list.str(lf,i)+"/isKey") { sql=sql+" PRIMARY KEY" }
         }
 
-        return sql+");"
+        return sql+"\r\n);"
+    }
+
+    //#region Compatibilidad DDM
+    get_definition::act
+    {
+        type = ifstr(@@(act,"$type")=="", @@(act,"$comp_type"), @@(act,"$type"))
+        precision = if(@@(act,"#precision")==0, @@(act,"#comp_precision"), @@(act,"#precision"))
+        scale = if(@@(act,"#scale")==0, @@(act,"#comp_scale"), @@(act,"#scale"))
+        size = if(@@(act,"#size")==0, @@(act,"#comp_size"), @@(act,"#size"))
+
+        definition = ""
+
+        new types
+        {
+            @"bool": "BOOL"
+            @"int": "INT"
+            @"memo": "TEXT"
+            @"mmemo": "MEDIUMTEXT"
+            @"lmemo": "LONGTEXT"
+            @"datetime": "DATETIME"
+            @"time": "TIME"
+            @"date": "DATE"
+            @"decimal": "DECIMAL("+str(precision)+","+str(scale)+")"
+            @"string": ifstr(size > 4096, "TEXT", "VARCHAR("+str(size)+")")
+            @"default": toupper(type) + ifstr(size!=0, "("+str(size)+")", "")
+        }
+
+        definition = field.dstr(types, type, @@(types,"$default"))
+        if @@(act,"#isAutoIncrement") { definition = definition + " AUTO_INCREMENT" }
+        if @@(act,"#isRequired") { definition = definition + " NOT NULL" }
+        if @@(act,"#isUnique") { definition = definition + " UNIQUE" }
+        if @@(act,"#isKey") { definition = definition + " PRIMARY KEY" }
+
+        return definition
+    }
+
+    new_column::data
+    {
+        SQL_ADD_SINTAX = "ALTER TABLE `#<table>` ADD `#<column>` #<definition>"
+        
+        table = @@(data,"$table")
+        column = @@(data,"$column")
+        definition = get_definition(@@(data,"&new"))
+
+        return trim(ftext(SQL_ADD_SINTAX))+";"
+    }
+
+    change_column::data
+    {
+        SQL_ALTER_SINTAX = "ALTER TABLE `#<table>` MODIFY COLUMN `#<column>` #<definition>"
+
+        table = @@(data,"$table")
+        column = @@(data,"$column")
+        definition = get_definition(@@(data,"&change"))
+
+        return trim(ftext(SQL_ALTER_SINTAX))+";"
+    }
+
+    create_actions::&actions, &sentences
+    {
+        go foreach.lobj(value:act) with(actions)
+        {
+            switch @@(act,"action")
+            {
+                case "new"
+                {
+                    sql = new_column(act)
+                    do list.add(sentences,sql)
+                    break
+                }
+                case "change"
+                {
+                    sql = change_column(act)
+                    do list.add(sentences,sql)
+                    break
+                }
+                case "incompatible" { do print(to.json(act)) }
+            }
+        }
+    }
+    //#endregion
+
+    actions2mysql::&tables,&sentences
+    {
+        if isnull(tables) { return }
+
+        for i = 0; i < list.count(tables); i+1
+        {
+            ref table = list.obj(tables,i)
+            do create_actions(@@(table,"&actions"),sentences)
+        }
+    }
+
+    tables2mysql::&tables,&sentences
+    {
+        if isnull(tables) { return }
+
+        do create_tables(tables,sentences)
+        do create_indexes(tables,sentences)
+        do create_references(tables,sentences)   
     }
 
     schema2mysql::&schema
     {
-        ref sentences=list.create()
+        ref sentences = list.create()
 
-        do create_tables(@@(schema,"&tables"),sentences)
-        do create_indexes(@@(schema,"&tables"),sentences)
-        do create_references(@@(schema,"&tables"),sentences)
+        do tables2mysql(@@(schema,"&tables"),sentences)
+        do actions2mysql(@@(schema,"&compatibility"),sentences)
+
         return sentences
-        
     }
 
-    ref sentences=schema2mysql(@@(@context,"&schema"))
-    ref buffer=text.create()
-    
-    for i=0;i<@count(sentences)
+    ref args = @@(@context,"&args")
+    if @@(args,"$fmt") == "" || @@(args,"$fmt") == "json_schema"
     {
-        do text.say(buffer,list.str(sentences,i))
-    }
+        ref sentences = schema2mysql(@@(@context,"&schema"))
+        ref buffer = text.create()
+        
+        for i = 0; i < @count(sentences)
+        {
+            do text.say(buffer,list.str(sentences,i))
+        }
 
-    @context<"output">:"text"
-    @context<"text">:text.get(buffer)
+        @context<"output"> : "text"
+        @context<"text"> : text.get(buffer)
+    }
 }

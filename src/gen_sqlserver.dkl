@@ -6,12 +6,23 @@ program
     
     ref sentences=schema2sqlserver(@@(@context,"&schema"))
     ref buffer=text.create()
+
+    if @@(@context,"$schema/name") != "" {
+        DB_NAME = ranychars(tolower(trim(@@(@context,"$schema/name"))), " .:;-", "_")
+
+        // Verifica si la base de datos existe
+        do text.say(buffer,"IF NOT EXISTS (SELECT name FROM sys.databases WHERE name = '"+DB_NAME+"')")
+        do text.say(buffer,"BEGIN")
+        do text.say(buffer,"    CREATE DATABASE "+DB_NAME+";") // Crea la base de datos
+        do text.say(buffer,"END")
+        do text.say(buffer,"USE "+DB_NAME+";") // Utiliza la base de datos
+    }
     
     for i=0;i<@count(sentences)
     {
         do text.say(buffer,list.str(sentences,i))
     }
 
-    @context<"output">:"text"
-    @context<"text">:text.get(buffer)
+    @context<"output"> : "text"
+    @context<"text"> : text.get(buffer)
 }

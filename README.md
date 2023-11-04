@@ -199,6 +199,7 @@ model "CRM Sales"
         @"name" string(50)
         @"probability" bool
     }
+}
 ```
 
 ### Definición de columnas
@@ -255,22 +256,43 @@ Los archivos incluidos son:
 
 ## Uso de las herramientas
 
+### Generación de estrctura desde DDM
+
 ```
 dkl dbgen "src=archivo_fuente" "fmt=programa_generador" "out=archivo_salida"
 
-dkl dbgen "a=archivo_fuente_A" "b=archivo_fuente_B" "c=archvo_c" "fmt=programa_generador" "out=archivo_salida"
 ```
+* `src`: es la ruta y el nombre de un archivo en dialecto DDM
+* `fmt` (opcional): es el nombre del programa generador de segundo paso, si este parámetro se omite, se producirá como salida un objeto JSON que representa la estructura como resultado de la generación de primer paso.
+* `out`: es el archivo en donde se escribirán los resultados de la generación, si se omite el resultado se imprimirá como salida de la consola.
 
-* archivo_fuente es la ruta y el nombre de un archivo en dialecto DDM
-* programa_generador (opcional) es el nombre del programa generador de segundo paso (en este momento únicamente gen_mysql.dkl), si este parámetro se omite, se producirá como salida un objeto JSON que representa la estructura como resultado de la generación de primer paso.
-* archivo_salida (opcional) es el archivo en donde se escribirán los resultados de la generación, si se omite el resultado se imprimirá como salida de la consola. 
-
-Ejemplo de línea de comando para generar código para mySQL
-
+Ejemplo de línea de comando para generar código MySQL
 ```
 dkl dbgen "src=modelo.dkl" "fmt=gen_mysql.dkl" "out=script.sql"
 ```
+Ejemplo de línea de comando para generar código SQLServer
+```
+dkl dbgen "src=modelo.dkl" "fmt=gen_sqlserver.dkl" "out=script.sql"
+```
 
+### Comparación de dos modelos y generación de actualización
+```
+dkl dbgen "a=archivo_fuente_A" "b=archivo_fuente_B" "c=lista,de,tablas,a,filtrar" "fmt=programa_generador" "out=archivo_salida"
+```
+* `a`: es la ruta y el nombre de un archivo json que representa la estructura como resultado de la generación de primer paso.
+* `b`: es la ruta y el nombre de un archivo json que representa la estructura como resultado de la generación de primer paso.
+* `c` (opcional): es una lista de nombres de tablas separadas por coma(,) las cuales seran comparadas.
+* `fmt` (opcional): es el nombre del programa generador de segundo paso, si este parámetro se omite, se producirá como salida un objeto JSON que representa la estructura como resultado de la generación de primer paso.
+* `out`: es el archivo en donde se escribirán los resultados de la generación, si se omite el resultado se imprimirá como salida de la consola.
+
+Ejemplo de línea de comando para comparar 2 esquemas y generar nuevo código MySQL
+```
+dkl dbgen "a=esquema_a.json" "b=esquema_b.json" "fmt=gen_mysql.dkl" "out=script.sql"
+```
+Ejemplo de línea de comando para comparar 2 esquemas y generar nuevo código SQLServer
+```
+dkl dbgen "a=esquema_a.json" "b=esquema_b.json" "fmt=gen_sqlserver.dkl" "out=script.sql"
+```
 ###
 Acerca del proceso de generación
 

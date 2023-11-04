@@ -1,8 +1,8 @@
 #include "ddm.dkh"
-
-model "sys_tables"
+model "Induxsoft sys_tables"
 {
-    /* uod.tuser */
+    #include "induxsoft.abstracts.ddm"
+
     entity "tuser" : "TableModel"
     {
         @"locked" bool 
@@ -13,7 +13,7 @@ model "sys_tables"
         @"username" string(120) required
         @"pwdmd5" string(64) 
     }
-    /* uod.user_usergroup_ */
+    
     entity "user_usergroup_"
     {
         @"sys_pk" int key required autoincrement
@@ -25,7 +25,7 @@ model "sys_tables"
         @"groups" int ref:"usergroup" ["sys_pk"] required
         @"users" int ref:"tuser" ["sys_pk"] required
     }
-    /* uod.usergroup */
+    
     entity "usergroup" : "TableModel"
     {
         @"description" string(80) required
@@ -34,7 +34,6 @@ model "sys_tables"
         @"uf_hidetoolbar" string(1) 
     }
 
-    /* uod.sys_batch */
     entity "sys_batch" : "TableModel"
     {
         @"batch_name" string(32) unique required
@@ -48,7 +47,7 @@ model "sys_tables"
         @"batch_scheduled" int ref:"sys_batch_schedule" ["id"] 
         @"batch_last_execution" int 
     }
-    /* uod.sys_batch_log */
+    
     entity "sys_batch_log" : "TableModel"
     {
         @"sys_batch" int required
@@ -58,11 +57,11 @@ model "sys_tables"
         @"batch_log_previous" int 
         @"batch_os_id" string(32) 
     }
-    /* uod.sys_batch_schedule */
+    
     entity "sys_batch_schedule" : "EnumModel" {}
-    /* uod.sys_batch_state */
+    
     entity "sys_batch_state" : "EnumModel" {}
-    /* uod.sys_batch_task */
+    
     entity "sys_batch_task" : "TableModel"
     {
         @"sys_batch" int required
@@ -74,7 +73,7 @@ model "sys_tables"
         @"batch_task_fatal" bool 
         @"batch_task_order" int 
     }
-    /* uod.sys_batch_task_log */
+    
     entity "sys_batch_task_log" : "TableModel"
     {
         @"batch_log" int required
@@ -87,14 +86,14 @@ model "sys_tables"
         @"task_percent_progress" decimal(4,2) 
         @"task_progress" decimal(4,2) 
     }
-    /* uod.sys_catalog */
+    
     entity "sys_catalog" : "TableModel"
     {
         @"objectname" string(64) unique required
         @"objectdescription" string(4096) 
         @"objecttype" string(64) required
     }
-    /* uod.sys_lockinfo */
+    
     entity "sys_lockinfo" : "TableModel"
     {
         @"sys_table" int ref:"sys_catalog" ["sys_pk"] required
@@ -102,15 +101,15 @@ model "sys_tables"
         @"sys_token" int ref:"sys_session" ["sys_pk"] required
         @"sys_active" bool 
     }
-    /* uod.sys_session */
+    
     entity "sys_session" : "TableModel"
     {
         @"iuser" int required
         @"clientinfo" string(64) required
     }
-    /* uod.sys_task_state */
+    
     entity "sys_task_state" : "EnumModel" {}
-    /* uod.sys_temp_permissions */
+    
     entity "sys_temp_permissions" : "TableModel"
     {
         @"curruser" string(120) 

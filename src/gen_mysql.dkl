@@ -6,12 +6,19 @@ program
     
     ref sentences=schema2mysql(@@(@context,"&schema"))
     ref buffer=text.create()
+
+    if @@(@context,"$schema/name") != "" {
+        DB_NAME = ranychars(tolower(trim(@@(@context,"$schema/name"))), " .:;-", "_")
+        
+        do text.say(buffer,"CREATE DATABASE IF NOT EXISTS "+DB_NAME+";")
+        do text.say(buffer,"USE "+DB_NAME+";")
+    }
     
     for i=0;i<@count(sentences)
     {
         do text.say(buffer,list.str(sentences,i))
     }
 
-    @context<"output">:"text"
-    @context<"text">:text.get(buffer)
+    @context<"output"> : "text"
+    @context<"text"> : text.get(buffer)
 }

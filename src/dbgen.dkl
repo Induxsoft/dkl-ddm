@@ -21,52 +21,104 @@ program
 
     ref args=commandline("=")
 
-    if not(file.exists(@@(args,"$src")))
-        {do rise_error(0,"No existe el archivo de origen o no se ha indicado el parámetro")}
+    srcA = @@(args,"$a")
+    srcB = @@(args,"$b")
+    fsrc = @@(args,"$src")
+    fout = @@(args,"$out")
+    dout = dir.name(fout)
 
-    xml=runscript(@@(args,"src"))
+    ACTION = 0
+    TABLES = 1
+    COMPATIBILITY = 2
 
-    ref obj=parse.xmlStr(xml)
+    if field.exist(args,"src") { ACTION = TABLES }
+    if field.exist(args,"a") || field.exist(args,"b") { ACTION = COMPATIBILITY }
 
-    ref abstracts=record.create()
-    ref tables=record.create()
+    generador = tolower(trim(@@(args,"$fmt")))
+    if containsword(generador,"mysql,gen_mysql,gen_mysql.dkl") { args<"fmt"> : "gen_mysql.dkl" }
+    else if containsword(generador,"sqlserver,gen_sqlserver,gen_sqlserver.dkl") { args<"fmt"> : "gen_sqlserver.dkl" }
+    else { args<"fmt"> : "" }
 
-    ref nodes=@@(obj,"&nodes")
-
-    if isnull(nodes) { do rise_error("No hay objetos de bases de datos definidos") }
-
-    ref objectNodes=list.create()
-    //Recuperar definiciones en inclusiones de sub-modelos
-    do addObjects(objectNodes,nodes)
-
-    //Recuperar las abstracciones
-    for i=0;i<@count(objectNodes)   
+    function getTableSchema(src)
     {
-        ref o=@item(objectNodes,i)
-        if @@(o,"name")==@ABSTRACT
+        xml = runscript(src)
+
+        ref obj = parse.xmlStr(xml)
+        ref abstracts = record.create()
+        ref tables = record.create()
+        ref nodes = @@(obj,"&nodes")
+
+        if isnull(nodes) { do rise_error("No hay objetos de bases de datos definidos") }
+
+        ref objectNodes=list.create()
+        //Recuperar definiciones en inclusiones de sub-modelos
+        do addObjects(objectNodes,nodes)
+        //Recuperar las abstracciones
+        for i = 0; i < @count(objectNodes)
         {
-            abstracts<@@(o,"attributes/name")+"*">:createTableObject(o,abstracts)
+            ref o=@item(objectNodes,i)
+            if @@(o,"name") == @ABSTRACT {
+                abstracts<@@(o,"attributes/name")+"*"> : createTableObject(o,abstracts)
+            }
         }
-    }
-
-    //Recuperar las entidades
-    for i=0;i<@count(objectNodes)   
-    {
-        ref o=@item(objectNodes,i)
-        if @@(o,"name")==@ENTITY
+        //Recuperar las entidades
+        for i = 0; i < @count(objectNodes)   
         {
-            tables<@@(o,"attributes/name")+"*">:createTableObject(o,abstracts)
+            ref o=@item(objectNodes,i)
+            if @@(o,"name") == @ENTITY {
+                tables<@@(o,"attributes/name")+"*"> : createTableObject(o,abstracts)
+            }
         }
+
+        new schema
+        {
+            @"name":@@(obj,"$attributes/name")
+            @"tables*":tables
+        }
+        do fixColumns(schema)
+
+        return schema
     }
 
-    new schema
+    ref schema = @null
+
+    switch ACTION
     {
-        @"name":@@(obj,"$attributes/name")
-        @"tables*":tables
+        case TABLES
+        {
+            if not(file.exists(fsrc)) { do rise_error(1,"No existe el archivo de origen, o no se ha indicado el parámetro.") }
+            if not(dir.exists(dout)) { do rise_error(1,"No existe la ruta de salida, o no se ha indicado el parámetro.") }
+            ref schema = getTableSchema(fsrc)
+            break
+        }
+        case COMPATIBILITY
+        {
+            if not(file.exists(srcA)) { do rise_error(1,"No existe el archivo fuente a, o no se ha indicado el parámetro.") }
+            if not(file.exists(srcB)) { do rise_error(1,"No existe el archivo fuente b, o no se ha indicado el parámetro.") }
+            if not(dir.exists(dout)) { do rise_error(1,"No existe la ruta de salida, o no se ha indicado el parámetro.") }
+
+            fil = trim(@@(args,"$c"))
+            ref filter = if(fil=="", @null, split(fil,","))
+            ref schema = ddm.analyze(srcA,srcB,filter)
+
+            ref new_tables = ifnull(@@(schema,"&analysis/new"),list.create())
+            if list.count(new_tables) > 0 {
+                // ref cur_ddm = from.json(file.rtext(srcA))
+                ref new_ddm = from.json(file.rtext(srcB))
+            
+                new tables
+                go foreach.lstr(value:tbl) with(new_tables)
+                {
+                    tables<tbl+"*"> : @@(new_ddm,"&tables/"+tbl)
+                }
+
+                schema<"tables*"> : tables
+            }
+            break
+        }
+        default { do rise_error(1,"Debe indicar un archivo de origen (src, a, b).") }
     }
-
-    do fixColumns(schema)
-
+    
     if @@(args,"$fmt")=="" || @@(args,"$fmt")=="json_schema"
     {
         output=to.json(schema)
@@ -89,13 +141,12 @@ program
                 output=@@(context,"$text")
             }
         }
+
+        json_name = file.justname(fout) + ".json"
+        file_json = path.concat(dout,json_name)
+        
+        do file.wtext(file_json,to.json(schema))
     }
     
-
-    fout=@@(args,"$out")
-
-    if (fout=="")
-        { do print(output)}
-    else
-    { do file.wtext(fout,output) }
+    do file.wtext(fout,output)
 }
