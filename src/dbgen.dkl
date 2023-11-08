@@ -39,47 +39,6 @@ program
     else if containsword(generador,"sqlserver,gen_sqlserver,gen_sqlserver.dkl") { args<"fmt"> : "gen_sqlserver.dkl" }
     else { args<"fmt"> : "" }
 
-    function getTableSchema(src)
-    {
-        xml = runscript(src)
-
-        ref obj = parse.xmlStr(xml)
-        ref abstracts = record.create()
-        ref tables = record.create()
-        ref nodes = @@(obj,"&nodes")
-
-        if isnull(nodes) { do rise_error("No hay objetos de bases de datos definidos") }
-
-        ref objectNodes=list.create()
-        //Recuperar definiciones en inclusiones de sub-modelos
-        do addObjects(objectNodes,nodes)
-        //Recuperar las abstracciones
-        for i = 0; i < @count(objectNodes)
-        {
-            ref o=@item(objectNodes,i)
-            if @@(o,"name") == @ABSTRACT {
-                abstracts<@@(o,"attributes/name")+"*"> : createTableObject(o,abstracts)
-            }
-        }
-        //Recuperar las entidades
-        for i = 0; i < @count(objectNodes)   
-        {
-            ref o=@item(objectNodes,i)
-            if @@(o,"name") == @ENTITY {
-                tables<@@(o,"attributes/name")+"*"> : createTableObject(o,abstracts)
-            }
-        }
-
-        new schema
-        {
-            @"name":@@(obj,"$attributes/name")
-            @"tables*":tables
-        }
-        do fixColumns(schema)
-
-        return schema
-    }
-
     ref schema = @null
 
     switch ACTION

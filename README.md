@@ -217,6 +217,8 @@ tipo es alguna de los siguientes:
 * decimal(precisión, escala)
 * string(tamaño)
 * memo
+* mmemo
+* lmemo
 
 Los atributos (son opcionales y) pueden ser los siguientes:
 

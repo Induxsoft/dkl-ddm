@@ -249,10 +249,11 @@ program
         return sentences
     }
 
-    ref args = @@(@context,"&args")
-    if @@(args,"$fmt") == "" || @@(args,"$fmt") == "json_schema"
+    getSQL::&schema
     {
-        ref sentences = schema2mysql(@@(@context,"&schema"))
+        if isnull(schema) { return }
+        
+        ref sentences = schema2mysql(schema)
         ref buffer = text.create()
         
         for i = 0; i < @count(sentences)
@@ -260,7 +261,6 @@ program
             do text.say(buffer,list.str(sentences,i))
         }
 
-        @context<"output"> : "text"
-        @context<"text"> : text.get(buffer)
+        return trim(text.get(buffer))
     }
 }

@@ -288,6 +288,53 @@ module "ddm.json"
         }
     }
 
+    /**
+    * getTableSchema
+    *
+    * string fsrc Cadena con la ruta y nombre del archivo (.ddm) a procesar.
+    * return Devuelve un objeto que representa la estructura del modelo DDM como resultado de la generación de primer paso.
+    */
+    function getTableSchema(fsrc)
+    {
+        xml = runscript(fsrc)
+
+        ref obj = parse.xmlStr(xml)
+        ref abstracts = record.create()
+        ref tables = record.create()
+        ref nodes = @@(obj,"&nodes")
+
+        if isnull(nodes) { do rise_error("No hay objetos de bases de datos definidos") }
+
+        ref objectNodes=list.create()
+        //Recuperar definiciones en inclusiones de sub-modelos
+        do addObjects(objectNodes,nodes)
+        //Recuperar las abstracciones
+        for i = 0; i < @count(objectNodes)
+        {
+            ref o=@item(objectNodes,i)
+            if @@(o,"name") == @ABSTRACT {
+                abstracts<@@(o,"attributes/name")+"*"> : createTableObject(o,abstracts)
+            }
+        }
+        //Recuperar las entidades
+        for i = 0; i < @count(objectNodes)   
+        {
+            ref o=@item(objectNodes,i)
+            if @@(o,"name") == @ENTITY {
+                tables<@@(o,"attributes/name")+"*"> : createTableObject(o,abstracts)
+            }
+        }
+
+        new schema
+        {
+            @"name":@@(obj,"$attributes/name")
+            @"tables*":tables
+        }
+        do fixColumns(schema)
+
+        return schema
+    }
+
     //* ======================================== [ ... ] ========================================
 
     /**
