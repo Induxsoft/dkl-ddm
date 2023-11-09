@@ -390,6 +390,8 @@ module "ddm.json"
             {$'
             [
                 {"t1":"string", "t2":"memo", "use":"memo"},
+                {"t1":"memo", "t2":"mmemo", "use":"mmemo"},
+                {"t1":"mmemo", "t2":"lmemo", "use":"lmemo"},
                 {"t1":"int", "t2":"decimal", "use":"decimal"},
                 {"t1":"date", "t2":"datetime", "use":"datetime"},
             ]
@@ -494,6 +496,9 @@ module "ddm.json"
 
                     switch comp_type
                     {
+                        case "memo" { break }
+                        case "mmemo" { break }
+                        case "lmemo" { break }
                         case "string"
                         {
                             change<"curr_size"> : @@(column_a,"#size")
@@ -556,22 +561,29 @@ module "ddm.json"
         ref b = from.json(file.rtext(srcB))
 
         ref UnifiedTables = ddm.compareTables(a,b,filter)
+        ref NewTables = record.create()
         ref ComparedColumns = list.create()
-
-        ref commonTables = @@(UnifiedTables,"&filtered")
-
-        if isnull(commonTables) { ref commonTables = @@(UnifiedTables,"&common") }
-        if list.count(commonTables) == 0 { ref commonTables = @@(UnifiedTables,"&common") }
-
-        go foreach.lstr(value:tabla) with(commonTables)
+        // Comparar columnas de las tablas comunes o filtradas.
+        ref listCommonTables = ifnull(@@(UnifiedTables,"&filtered"),list.create())
+        if list.count(listCommonTables) == 0 { ref listCommonTables = @@(UnifiedTables,"&common") }
+        go foreach.lstr(value:tabla) with(listCommonTables)
         {
             ref cc = ddm.compareColumns(a,b,tabla)
             do list.add(ComparedColumns,cc)
+        }
+        // Extraer nuevas tablas
+        ref listNewTables = ifnull(@@(UnifiedTables,"&new"),list.create())
+        if list.count(listNewTables) > 0 {
+            go foreach.lstr(value:tbl) with(listNewTables)
+            {
+                NewTables<tbl+"*"> : @@(b,"&tables/"+tbl)
+            }
         }
 
         new result
         {
             @"analysis*": UnifiedTables
+            @"tables*": NewTables
             @"compatibility*": ComparedColumns
         }
 

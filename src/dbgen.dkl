@@ -1,6 +1,6 @@
 #include "dkli.dkh"
 #!
-program
+program "dbgen"
 {
     #include "functions.dkh"
     #include "serialize.dkh"
@@ -59,20 +59,6 @@ program
             fil = trim(@@(args,"$c"))
             ref filter = if(fil=="", @null, split(fil,","))
             ref schema = ddm.analyze(srcA,srcB,filter)
-
-            ref new_tables = ifnull(@@(schema,"&analysis/new"),list.create())
-            if list.count(new_tables) > 0 {
-                // ref cur_ddm = from.json(file.rtext(srcA))
-                ref new_ddm = from.json(file.rtext(srcB))
-            
-                new tables
-                go foreach.lstr(value:tbl) with(new_tables)
-                {
-                    tables<tbl+"*"> : @@(new_ddm,"&tables/"+tbl)
-                }
-
-                schema<"tables*"> : tables
-            }
             break
         }
         default { do rise_error(1,"Debe indicar un archivo de origen (src, a, b).") }
