@@ -1,0 +1,33 @@
+#include "dkli.dkh"
+#!
+program
+{
+    #include "dbm.dkl"
+
+    ref args = commandline("=")
+
+    qname = trim(@@(args,"$db"))
+    fsrc = trim(@@(args,"$model"))
+    
+    if qname == "" { do rise_error(1,"No se ha indicado una cadena de conexión (db).") }
+    if not(file.exists(fsrc)) { do rise_error(1,"No existe el archivo de origen o no se ha indicado el parámetro (model).") }
+
+    do dbm.vQname(qname)
+    engine = dbm.getEngineType(qname)
+    supported_engines = "MY_SQL" //"MY_SQL,SQL_SERVER,POSTGRE_SQL"
+    if not(containsword(engine,supported_engines)) { do rise_error(1,"El motor de base de datos de la conexión no esta soportada.") }
+
+    fext = file.extension(fsrc)
+
+    if fext == ".json" {
+        ref schema = from.json(file.rtext(fsrc))
+    } else if fext == ".ddm" {
+        ref schema = getTableSchema(fsrc)
+    } else { do rise_error(1,"El tipo de archivo no esta soportado.") }
+
+    ref db = dbr.open(qname)
+    fname = file.name(fsrc)
+    ref model = schema
+
+    do dbm.installModel(db,fname,model)
+}

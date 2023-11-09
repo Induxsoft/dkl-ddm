@@ -1,0 +1,379 @@
+#include "dkli.dkh"
+#!
+program "dbm"
+{
+    #include "functions.dkh"
+    #include "serialize.dkh"
+    #include "dbr.dkh"
+
+    #include "ddm.json.dkl"
+    #include "ddm.mysql.dkl"
+
+    do _map_function(-1, "System.IO.Path", "GetTempPath", "GetTempPath", "", "$")
+    // do _map_function(-1, "System.IO.Directory", "GetCurrentDirectory", "GetCurrentDirectory", "", "$")
+
+    function dbm.getEngineType(qname)
+    {
+        ref info = dba.getconnection(qname)
+        return @@(info,"$Engine")
+    }
+
+    function dbm.vQname(qname)
+    {
+        if dba.cnnexists(qname) { return @true }
+
+        ref qn = split(qname,"@")
+        cnn = list.str(qn,0)
+        app = list.str(qn,1)
+
+        list_apps = to.json(dba.apps(""))
+        if not(contains(list_apps,app)) { do rise_error(1,"No se encontro el grupo de conexiones " + app) }
+        list_cnns = to.json(dba.cnns(app))
+        if not(contains(list_cnns,cnn)) { do rise_error(1,"No se encontro la conexión " + cnn) }
+    }
+
+    function dbm.checkLogTables(&db)
+    {
+        ref tbl1 = dbr.rec(db,"SHOW TABLES LIKE 'sys_model_log';",@null)
+        ref tbl2 = dbr.rec(db,"SHOW TABLES LIKE 'sys_model_ddl_log';",@null)
+
+        if not(isnull(tbl1)) && not(isnull(tbl2)) { return }
+
+        ref schema = getTableSchema("dbm.sys_tables.ddm")
+        sql_create_dbm_sys_tables = getSQL(schema)
+
+        do dbr.execute(db,sql_create_dbm_sys_tables,@null)
+    }
+
+    function dbm.insert_sys_model_ddl_log(&db,fk,act,sql,&json,res,msg)
+    {
+        new sys_model_ddl_log
+        {
+            @"sys_pk": 0
+            @"sys_guid": uuid()
+            @"sys_dtcreated*": now()
+            @"sys_timestamp*": now()
+            @"ref_model_log": fk
+            @"action": act
+            @"cmdsql": sql
+            @"jsondef": to.json(json)
+            @"success": res
+            @"message": msg
+        }
+        do dbr.insert(db,"sys_model_ddl_log",sys_model_ddl_log)
+    }
+
+    function dbm.updateModel(&cur,&def,act)
+    {
+        // if not(field.exist(cur,"analysis")) { cur<"analysis*"> : record.create() }
+        // if not(field.exist(cur,"tables")) { cur<"tables*"> : record.create() }
+        // if not(field.exist(cur,"compatibility")) { cur<"compatibility*"> : list.create() }
+
+        // ref def_analysis = ifnull(@@(def,"&analysis"), record.create())
+        // ref def_tables = ifnull(@@(def,"&tables"), record.create())
+        // ref def_compatibility = ifnull(@@(def,"&compatibility"), list.create())
+
+        switch act
+        {
+            case "new_table"
+            {
+                tname = @@(def,"$name")
+                cur<"tables/"+tname+"*"> : def
+                break
+            }
+            case "new_column"
+            {
+                tname = @@(def,"$table")
+                fname = @@(def,"$column")
+                ref field = @@(def,"&new")
+
+                cur<"tables/"+tname+"/columns/"+fname+"*"> : field
+                break
+            }
+            case "change_column"
+            {
+                tname = @@(def,"$table")
+                fname = @@(def,"$column")
+                ref change = @@(def,"&change")
+                type = @@(change,"$comp_type")
+                path = "tables/"+tname+"/columns/"+fname+"/"
+
+                cur<path+"type"> : type
+                
+                if type == "string"
+                {
+                    cur<path+"size"> : @@(change,"#comp_size")
+                }
+                else if type == "decimal"
+                {
+                    cur<path+"precision"> : @@(change,"#comp_precision")
+                    cur<path+"scale"> : @@(change,"#comp_scale")
+                }
+                else
+                {
+                    if @@(change,"#comp_size") > 0 { cur<path+"size"> : @@(change,"comp_size") }
+                }
+                break
+            }
+        }
+
+        // cur<"analysis*"> : def_analysis
+        
+        // go foreach.fobj(key:tname, value:tdata) with(def_tables)
+        // {
+        //     cur<"tables/"+tname+"*"> : tdata
+        // }
+
+        // // cur<"compatibility*"> : def_compatibility
+        // go foreach.lobj(value:ctables) with(def_compatibility)
+        // {
+        //     do list.add(@@(cur,"&compatibility"),ctables)
+        // }
+    }
+
+    function dbm.installModel(&db,modelid,jsonmodel)
+    {
+        do errordet(@true)
+        do dbm.checkLogTables(db)
+
+        ref schema = jsonmodel
+
+        str_model = dbr.str(db,"SELECT IFNULL((SELECT model FROM sys_model_log ORDER BY sys_pk DESC LIMIT 1),'{}') AS model;",@null)
+        ref current_model = from.json(str_model)
+        if list.count(list.create_from_fields(current_model)) > 0 
+        {
+            temp_folder = GetTempPath()
+            temp_name_a = uuid() + ".json"
+            temp_name_b = uuid() + ".json"
+            temp_fsrc_a = path.concat(temp_folder,temp_name_a)
+            temp_fsrc_b = path.concat(temp_folder,temp_name_b)
+
+            do file.wtext(temp_fsrc_a,to.json(current_model))
+            do file.wtext(temp_fsrc_b,to.json(jsonmodel))
+
+            ref schema = ddm.analyze(temp_fsrc_a, temp_fsrc_b, @null)
+
+            do file.delete(temp_fsrc_a)
+            do file.delete(temp_fsrc_b)
+        }
+        else
+        {
+            ref current_model = jsonmodel
+        }
+
+        ref analisys = ifnull(@@(schema,"&analysis"),record.create())
+        ref compatibility = ifnull(@@(schema,"&compatibility"),list.create())
+        ref tables = ifnull(@@(schema,"&tables"),record.create())
+
+        ref lst_idx = list.create()
+        ref lst_ref = list.create()
+
+        new sys_model_log
+        {
+            @"sys_pk": 0
+            @"sys_guid": uuid()
+            @"sys_dtcreated*": now()
+            @"sys_timestamp*": now()
+            @"source": modelid
+            @"install": to.json(jsonmodel)
+            @"analisys": to.json(analisys)
+            @"compatible": @true
+            @"success": @false
+            @"model": ""
+        }
+        
+        if list.count(compatibility) > 0 {
+            ref fo = list.obj(compatibility,0)
+            sys_model_log<"compatible"> : @@(fo,"#compatible")
+        }
+        
+        do dbr.insert(db,"sys_model_log",sys_model_log)
+        LAST_ID = dbr.num(db,"SELECT MAX(sys_pk) FROM sys_model_log",@null)
+        new params { @"id": LAST_ID }
+
+        // Inicia proceso de instalación del nuevo modelo
+        // Nuevas tablas
+        ref lt = list.create_from_fields(tables)
+        for i = 0; i < list.count(lt); i+1
+        {
+            tname = list.str(lt,i)
+            ref tdata = field.obj(tables,tname)
+
+            ref columns = ifnull(@@(tdata,"&columns"),record.create())
+            ref indexes = ifnull(@@(tdata,"&indexes"),record.create())
+            ref lf = list.create_from_fields(columns)
+            ref li = list.create_from_fields(indexes)
+
+            // Obtener SQL CREATE TABLE
+            sql_create_table = trim(create_table(tdata))
+            do dbr.execute(db,sql_create_table,@null)
+            do dbm.insert_sys_model_ddl_log(db,LAST_ID,"create_table",sql_create_table,tdata,@true,"")
+            do dbm.updateModel(current_model,tdata,"new_table")
+
+            // Obtener SQL CREATE INDEX
+            for m = 0; m < list.count(li)
+            {
+                ref index = @@(indexes,"&"+list.str(li,m))
+                new obj
+                {
+                    @"idx*": index
+                    @"sql": trim(create_index(tname,index))
+                }
+                do list.add(lst_idx,obj)
+            }
+            // Obtener SQL FOREIGN KEY
+            for n = 0; n < list.count(lf)
+            {
+                ref column = @@(columns,"&"+list.str(lf,n))
+                if @@(column,"$reference") != "" {
+                    new obj
+                    {
+                        @"col*": column
+                        @"sql": trim(create_reference(tname,column,tables))
+                    }
+                    do list.add(lst_ref,obj)
+                }
+            }
+
+            exception
+            {
+                code = last_error_code()
+                error = last_error()
+
+                do dbm.insert_sys_model_ddl_log(db,LAST_ID,"create_table",sql_create_table,tdata,@false,error)
+                do rise_error(code,error)
+            }
+        }
+        // Crear indices de las nuevas tablas
+        go foreach.lobj(value:index) with(lst_idx)
+        {
+            ref idx = @@(index,"&idx")
+            sql_idx = @@(index,"$sql")
+
+            do dbr.execute(db,sql_idx,@null)
+            do dbm.insert_sys_model_ddl_log(db,LAST_ID,"create_index",sql_idx,idx,@true,"")
+
+            exception
+            {
+                code = last_error_code()
+                error = last_error()
+
+                do dbm.insert_sys_model_ddl_log(db,LAST_ID,"create_index",sql_idx,idx,@false,error)
+                do rise_error(code,error)
+            }
+        }
+        // Crear referencias (FK) de las nuevas tablass
+        go foreach.lobj(value:reference) with(lst_ref)
+        {
+            ref col = @@(reference,"&col")
+            sql_ref = @@(reference,"$sql")
+
+            do dbr.execute(db,sql_ref,@null)
+            do dbm.insert_sys_model_ddl_log(db,LAST_ID,"create_reference",sql_ref,col,@true,"")
+
+            exception
+            {
+                code = last_error_code()
+                error = last_error()
+
+                do dbm.insert_sys_model_ddl_log(db,LAST_ID,"create_reference",sql_ref,col,@false,error)
+                do rise_error(code,error)
+            }
+        }
+
+        // Tablas comparadas
+        for i = 0; i < list.count(compatibility); i+1
+        {
+            ref item = list.obj(compatibility,i)
+            ref actions = ifnull(@@(item,"&actions"), list.create())
+            // Columnas comparadas
+            for m = 0; m < list.count(actions); m+1
+            {
+                ref act = list.obj(actions,m)
+                // Acción determinada
+                switch @@(act,"$action")
+                {
+                    case "new"
+                    {
+                        sql = new_column(act)
+                        do dbr.execute(db,sql,@null)
+                        do dbm.insert_sys_model_ddl_log(db,LAST_ID,"new_column",sql,act,@true,"")
+                        do dbm.updateModel(current_model,act,"new_column")
+                        
+                        exception
+                        {
+                            code = last_error_code()
+                            error = last_error()
+
+                            do dbm.insert_sys_model_ddl_log(db,LAST_ID,"new_column",sql,act,@false,error)
+                            do rise_error(code,error)
+                        }
+                        break
+                    }
+                    case "change"
+                    {
+                        sql = change_column(act)
+                        do dbr.execute(db,sql,@null)
+                        do dbm.insert_sys_model_ddl_log(db,LAST_ID,"change_column",sql,act,@true,"")
+                        do dbm.updateModel(current_model,act,"change_column")
+                        
+                        exception
+                        {
+                            code = last_error_code()
+                            error = last_error()
+
+                            do dbm.insert_sys_model_ddl_log(db,LAST_ID,"change_column",sql,act,@false,error)
+                            do rise_error(code,error)
+                        }
+                        break
+                    }
+                    case "incompatible"
+                    {
+                        do print(to.json(act))
+                        do dbm.insert_sys_model_ddl_log(db,LAST_ID,"incompatible","",act,@false,@@(act,"$message"))
+                        exception{/*ignore*/}
+                        break
+                    }
+                }
+            }
+        }
+        // Fin del proceso de instalación del nuevo modelo
+
+        new cols_to_update
+        {
+            @"sys_timestamp*": now()
+            @"success": @true
+            @"model": to.json(current_model)
+        }
+        do dbr.update(db,"sys_model_log",cols_to_update,"sys_pk = @id",params)
+
+        ref result = dbr.rec(db,"SELECT * FROM sys_model_log WHERE sys_pk = @id",params)
+        
+        do dbr.close(db)
+        return @true
+
+        exception
+        {
+            if isset("db") {
+                if dbr.is_open(db) {
+                    if dbr.in_transaction(db) { do dbr.rollback(db) }
+
+                    if isset("params") {
+                        new cols_to_update
+                        {
+                            @"sys_timestamp*": now()
+                            @"model": to.json(current_model)
+                        }
+                        do dbr.update(db,"sys_model_log",cols_to_update,"sys_pk = @id",params)
+                        
+                        ref result = dbr.rec(db,"SELECT * FROM sys_model_log WHERE sys_pk = @id",params)
+                    }
+
+                    do dbr.close(db)
+                }
+            }
+            do print(last_error())
+            return @false
+        }
+    }
+}

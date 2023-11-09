@@ -1,0 +1,25 @@
+#include "ddm.dkh"
+model "dbm.sys_tables"
+{
+    #include "induxsoft.abstracts.ddm"
+
+    entity "sys_model_log" : "TableModel"
+    {
+        @"source" string(255) required
+        @"install" mmemo required
+        @"analisys" mmemo required
+        @"compatible" bool
+        @"success" bool
+        @"model" mmemo
+    }
+
+    entity "sys_model_ddl_log" : "TableModel"
+    {
+        @"ref_model_log" ref:"sys_model_log"
+        @"action" string(50)
+        @"cmdsql" mmemo required
+        @"jsondef" mmemo required
+        @"success" bool
+        @"message" memo
+    }
+}

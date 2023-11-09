@@ -255,6 +255,7 @@ Los archivos incluidos son:
 * dbgen.dkl - El generador de código de primer paso
 * gen_mysql.dkl - Generador de segundo paso para MySQL
 * gen_sqlserver.dkl - Generador de segundo paso para SQLServer
+* install-model.dkl - Instalador de modelos (DDM)
 
 ## Uso de las herramientas
 
@@ -295,7 +296,19 @@ Ejemplo de línea de comando para comparar 2 esquemas y generar nuevo código SQ
 ```
 dkl dbgen "a=esquema_a.json" "b=esquema_b.json" "fmt=gen_sqlserver.dkl" "out=script.sql"
 ```
-###
+
+### Instalación de modelos
+```
+dkl install-model "db=mi_conexión" "model=mi_modelo"
+```
+* `db`: Cadena con el nombre cualificado de una conexión existente.
+* `model`: Es la ruta y nombre del archivo (modelo) `.ddm` o `.json` que representa la estructura de una base de datos.
+
+Ejemplo de línea de comando para instalar un modelo ddm
+```
+dkl install-model "db=mibasededatos@migrupodeapps" "model=mimodelonuevo.ddm"
+```
+---
 Acerca del proceso de generación
 
 1. EL modelo es validado sintácticamente de acuerdo a los patrones establecidos en ddm.dkh
