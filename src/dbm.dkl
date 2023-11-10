@@ -131,6 +131,31 @@ program "dbm"
         // }
     }
 
+    function dbm.vCompatibility(&schema)
+    {
+        compatible = @true
+
+        if not(field.exist(schema,"compatibility")) { return compatible }
+        ref compatibility = ifnull(@@(schema,"&compatibility"),list.create())
+        
+        go foreach.lobj(value:tables) with(compatibility)
+        {
+            if not(@@(tables,"#compatible")) {
+                ref actions = ifnull(@@(tables,"&actions"), list.create())
+                for m = 0; m < list.count(actions); m+1
+                {
+                    ref act = list.obj(actions,m)
+                    if @@(act,"$action") == "incompatible" {
+                        do print(to.json(act))
+                        compatible = @false
+                    }
+                }
+            }
+        }
+
+        return compatible
+    }
+
     function dbm.installModel(&db,modelid,jsonmodel)
     {
         do errordet(@true)
@@ -138,7 +163,7 @@ program "dbm"
 
         ref schema = jsonmodel
 
-        str_model = dbr.str(db,"SELECT IFNULL((SELECT model FROM sys_model_log ORDER BY sys_pk DESC LIMIT 1),'{}') AS model;",@null)
+        str_model = dbr.str(db,"SELECT IFNULL((SELECT model FROM sys_model_log WHERE model IS NOT NULL ORDER BY sys_pk DESC LIMIT 1),'{}') AS model;",@null)
         ref current_model = from.json(str_model)
         if list.count(list.create_from_fields(current_model)) > 0 
         {
@@ -177,9 +202,9 @@ program "dbm"
             @"source": modelid
             @"install": to.json(jsonmodel)
             @"analisys": to.json(analisys)
-            @"compatible": @true
+            @"compatible": @false
             @"success": @false
-            @"model": ""
+            @"model*": @null
         }
         
         if list.count(compatibility) > 0 {
@@ -190,6 +215,12 @@ program "dbm"
         do dbr.insert(db,"sys_model_log",sys_model_log)
         LAST_ID = dbr.num(db,"SELECT MAX(sys_pk) FROM sys_model_log",@null)
         new params { @"id": LAST_ID }
+
+        compatible = @true
+        if not(dbm.vCompatibility(schema)) {
+            compatible = @false
+            if not(compatible) { do rise_error(99,"No es posible instalar el modelo, se encontraron incompatibilidades.") }
+        }
 
         // Inicia proceso de instalación del nuevo modelo
         // Nuevas tablas
@@ -342,6 +373,7 @@ program "dbm"
         new cols_to_update
         {
             @"sys_timestamp*": now()
+            @"compatible": @true
             @"success": @true
             @"model": to.json(current_model)
         }
@@ -350,6 +382,7 @@ program "dbm"
         ref result = dbr.rec(db,"SELECT * FROM sys_model_log WHERE sys_pk = @id",params)
         
         do dbr.close(db)
+        do print("Modelo instalado con éxito")
         return @true
 
         exception
@@ -358,7 +391,7 @@ program "dbm"
                 if dbr.is_open(db) {
                     if dbr.in_transaction(db) { do dbr.rollback(db) }
 
-                    if isset("params") {
+                    if isset("params") && compatible {
                         new cols_to_update
                         {
                             @"sys_timestamp*": now()

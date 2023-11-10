@@ -308,6 +308,17 @@ Ejemplo de línea de comando para instalar un modelo ddm
 ```
 dkl install-model "db=mibasededatos@migrupodeapps" "model=mimodelonuevo.ddm"
 ```
+Para la instalación del nuevo modelo la herramienta trabaja con 2 tablas sys_model_log y sys_model_ddl_log que serán creadas en la base de datos de la cadena de conexión si no existen.
+
+Cuando el proceso de instalación ha finalizado podra ver en:
+
+* sys_model_log: información del modelo instalado.
+* sys_model_ddl_log: información de las acciones ejecutadas (nuevas tablas, nuevas columnas, modificación de columnas, etc.)
+
+Campos incompatibles en true
+* required
+* primarykey
+
 ---
 Acerca del proceso de generación
 
