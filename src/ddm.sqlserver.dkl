@@ -41,8 +41,11 @@ program
     create_reference::table, &column, &tables
     {
         if @@(column,"$reference")=="" {return "" }
+
+        ref_table_name=get_name(@@(tables,"&"+@@(column,"$reference")))
+        if trim(ref_table_name)=="" { ref_table_name = @@(column,"$reference") }
         
-        return "ALTER TABLE "+table+" ADD FOREIGN KEY ("+get_name(column)+") REFERENCES "+get_name(@@(tables,"&"+@@(column,"$reference")))+"("+@@(column,"$keyfield")+");"
+        return "ALTER TABLE "+table+" ADD FOREIGN KEY ("+get_name(column)+") REFERENCES "+ref_table_name+"("+@@(column,"$keyfield")+");"
 
         exception{do print(last_error())}
 

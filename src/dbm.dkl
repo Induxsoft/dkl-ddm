@@ -134,10 +134,10 @@ program "dbm"
     function dbm.vCompatibility(&schema)
     {
         compatible = @true
-
         if not(field.exist(schema,"compatibility")) { return compatible }
-        ref compatibility = ifnull(@@(schema,"&compatibility"),list.create())
         
+        ref compatibility = ifnull(@@(schema,"&compatibility"),list.create())
+        do print("Iniciando analisis.")
         go foreach.lobj(value:tables) with(compatibility)
         {
             if not(@@(tables,"#compatible")) {
@@ -152,7 +152,7 @@ program "dbm"
                 }
             }
         }
-
+        do print("Analisis completado.")
         return compatible
     }
 
@@ -240,6 +240,7 @@ program "dbm"
             do dbr.execute(db,sql_create_table,@null)
             do dbm.insert_sys_model_ddl_log(db,LAST_ID,"create_table",sql_create_table,tdata,@true,"")
             do dbm.updateModel(current_model,tdata,"new_table")
+            do print("tabla creada: " + tname)
 
             // Obtener SQL CREATE INDEX
             for m = 0; m < list.count(li)
@@ -247,6 +248,7 @@ program "dbm"
                 ref index = @@(indexes,"&"+list.str(li,m))
                 new obj
                 {
+                    @"tbl": tname
                     @"idx*": index
                     @"sql": trim(create_index(tname,index))
                 }
@@ -259,6 +261,7 @@ program "dbm"
                 if @@(column,"$reference") != "" {
                     new obj
                     {
+                        @"tbl": tname
                         @"col*": column
                         @"sql": trim(create_reference(tname,column,tables))
                     }
@@ -283,6 +286,7 @@ program "dbm"
 
             do dbr.execute(db,sql_idx,@null)
             do dbm.insert_sys_model_ddl_log(db,LAST_ID,"create_index",sql_idx,idx,@true,"")
+            do print("nuevo indice: " + @@(idx,"$name") + " en " + @@(index,"$tbl"))
 
             exception
             {
@@ -301,6 +305,7 @@ program "dbm"
 
             do dbr.execute(db,sql_ref,@null)
             do dbm.insert_sys_model_ddl_log(db,LAST_ID,"create_reference",sql_ref,col,@true,"")
+            do print("nuevo fk: " + @@(reference,"$tbl") + "." + @@(col,"$name") + " a " + @@(col,"$reference") + "." + @@(col,"$keyfield"))
 
             exception
             {
@@ -330,6 +335,7 @@ program "dbm"
                         do dbr.execute(db,sql,@null)
                         do dbm.insert_sys_model_ddl_log(db,LAST_ID,"new_column",sql,act,@true,"")
                         do dbm.updateModel(current_model,act,"new_column")
+                        do print("nuevo campo: " + @@(act,"$column") + " en " + @@(act,"$table"))
                         
                         exception
                         {
@@ -347,6 +353,7 @@ program "dbm"
                         do dbr.execute(db,sql,@null)
                         do dbm.insert_sys_model_ddl_log(db,LAST_ID,"change_column",sql,act,@true,"")
                         do dbm.updateModel(current_model,act,"change_column")
+                        do print("campo modificado: " + @@(act,"$column") + " en " + @@(act,"$table"))
                         
                         exception
                         {
