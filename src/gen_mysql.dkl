@@ -8,7 +8,7 @@ program
     ref buffer=text.create()
 
     if @@(@context,"$schema/name") != "" {
-        DB_NAME = ranychars(tolower(trim(@@(@context,"$schema/name"))), " .:;-", "_")
+        DB_NAME = ranychars(tolower(trim(@@(@context,"$schema/name"))), " .:;-/\\", "_")
         
         do text.say(buffer,"CREATE DATABASE IF NOT EXISTS "+DB_NAME+";")
         do text.say(buffer,"USE "+DB_NAME+";")

@@ -319,6 +319,22 @@ Campos incompatibles en true
 * required
 * primarykey
 
+#### Funciones de install-model
+
+```
+dkl install-model "db=mi_conexion" "action=funcion"
+```
+* `db`: Cadena con el nombre cualificado de una conexión existente.
+* `action`: Una de las siguientes funciones.
+    - infer-model: deducir el modelo en base a una aplicación (db).
+    - show-model: obtener el modelo de una aplicación (db).
+    - show-last-error: obtener el último error de instalación ocurrido.
+
+Ejemplo de linea de comando para obtener el modelo de una aplicación.
+```
+dkl install-modell "db=mibasededatos@migrupodeapps" "action=show-model"
+```
+
 ---
 Acerca del proceso de generación
 

@@ -186,6 +186,9 @@ program "dbm"
             ref current_model = jsonmodel
         }
 
+        if field.exist(schema,"tables/sys_model_log") { do field.remove(schema,"tables/sys_model_log") }
+        if field.exist(schema,"tables/sys_model_ddl_log") { do field.remove(schema,"tables/sys_model_ddl_log") }
+
         ref analisys = ifnull(@@(schema,"&analysis"),record.create())
         ref compatibility = ifnull(@@(schema,"&compatibility"),list.create())
         ref tables = ifnull(@@(schema,"&tables"),record.create())
@@ -456,6 +459,7 @@ program "dbm"
         ref db = dbr.open(qname)
         do dbm.checkLogTables(db)
         ref info = dba.getconnection(qname)
+        do print("Modelo obtenido.")
 
         // Iniciar schema.
         new schema
@@ -464,13 +468,14 @@ program "dbm"
             @"tables*": record.create()
         }
 
+        do print("Iniciando lectura, espere un momento por favor.")
         // Obtener las tablas de una base de datos.
-        sql_list_tables = "SELECT t.TABLE_SCHEMA, t.TABLE_NAME FROM information_schema.`TABLES` t WHERE t.TABLE_SCHEMA = @DefaultSchema;"
-        ref lTables = dbr.list(db,sql_list_tables,info)
+        sql_list_tables = "SELECT t.TABLE_SCHEMA, t.TABLE_NAME FROM information_schema.`TABLES` t WHERE t.TABLE_SCHEMA = @DefaultSchema AND t.TABLE_NAME NOT IN ('sys_model_log','sys_model_ddl_log');"
+        ref lstTables = dbr.list(db,sql_list_tables,info)
         
-        for i = 0; i < list.count(lTables); i+1
+        for i = 0; i < list.count(lstTables); i+1
         {
-            ref table = list.obj(lTables,i)
+            ref table = list.obj(lstTables,i)
             tname = @@(table,"$TABLE_NAME")
 
             // Crear objeto para una nueva tabla.
@@ -483,11 +488,11 @@ program "dbm"
 
             // Obtener las columnas de una tabla.
             sql_list_columns = "SELECT c.TABLE_SCHEMA, c.TABLE_NAME, c.COLUMN_NAME, c.DATA_TYPE, IFNULL(c.CHARACTER_MAXIMUM_LENGTH,0) CHARACTER_MAXIMUM_LENGTH, IFNULL(c.NUMERIC_PRECISION,0) NUMERIC_PRECISION, IFNULL(c.NUMERIC_SCALE,0) NUMERIC_SCALE, c.COLUMN_TYPE, c.IS_NULLABLE, c.COLUMN_KEY, c.EXTRA FROM information_schema.`COLUMNS` c WHERE c.TABLE_SCHEMA = @TABLE_SCHEMA AND c.TABLE_NAME = @TABLE_NAME;"
-            ref lColumns = dbr.list(db,sql_list_columns,table)
+            ref lstColumns = dbr.list(db,sql_list_columns,table)
 
-            for m = 0; m < list.count(lColumns); m+1
+            for m = 0; m < list.count(lstColumns); m+1
             {
-                ref column = list.obj(lColumns,m)
+                ref column = list.obj(lstColumns,m)
                 cname = @@(column,"$COLUMN_NAME")
 
                 new ocolumn { @"name": cname }
@@ -555,27 +560,30 @@ program "dbm"
                 if @@(column,"$COLUMN_KEY") == "PRI" { ocolumn<"isKey"> : @true }
                 if not(parse.bool(@@(column,"$IS_NULLABLE"))) { ocolumn<"isRequired"> : @true }
                 if @@(column,"$EXTRA") == "auto_increment" { ocolumn<"isAutoIncrement"> : @true }
-                if @@(column,"$COLUMN_KEY") == "MUL"
-                {
-                    // Obtener la relación de un campo FK.
-                    sql_foreign_key = "SELECT f.TABLE_NAME, f.COLUMN_NAME, f.REFERENCED_TABLE_NAME, f.REFERENCED_COLUMN_NAME FROM information_schema.KEY_COLUMN_USAGE f WHERE f.TABLE_SCHEMA = @TABLE_SCHEMA AND f.TABLE_NAME = @TABLE_NAME AND f.COLUMN_NAME = @COLUMN_NAME;"
-                    ref fk = dbr.rec(db,sql_foreign_key,column)
-
-                    ocolumn<"reference"> : @@(fk,"$REFERENCED_TABLE_NAME")
-                    ocolumn<"keyfield"> : @@(fk,"$REFERENCED_COLUMN_NAME")
-                }
 
                 // Agregar columna.
                 otable<"columns/"+cname+"*"> : ocolumn
             }
 
+            // Obtener las relaciones (FK) de una tabla.
+            sql_list_fk = "SELECT f.TABLE_NAME, f.COLUMN_NAME, f.REFERENCED_TABLE_NAME, f.REFERENCED_COLUMN_NAME FROM information_schema.KEY_COLUMN_USAGE f WHERE f.TABLE_SCHEMA = @TABLE_SCHEMA AND f.TABLE_NAME = @TABLE_NAME AND f.REFERENCED_TABLE_NAME IS NOT NULL AND f.REFERENCED_COLUMN_NAME IS NOT NULL;"
+            ref foreign_keys = dbr.list(db,sql_list_fk,table)
+
+            for m = 0; m < list.count(foreign_keys); m+1
+            {
+                ref fk = list.obj(foreign_keys,m)
+
+                otable<"columns/"+@@(fk,"$COLUMN_NAME")+"/reference"> : @@(fk,"$REFERENCED_TABLE_NAME")
+                otable<"columns/"+@@(fk,"$COLUMN_NAME")+"/keyfield"> : @@(fk,"$REFERENCED_COLUMN_NAME")
+            }
+
             // Obtener los indices de una tabla.
             sql_list_indexes = "SELECT i.INDEX_NAME, GROUP_CONCAT(i.COLUMN_NAME ORDER BY SEQ_IN_INDEX) AS COLUMN_LIST, i.NON_UNIQUE FROM information_schema.STATISTICS i WHERE i.TABLE_SCHEMA = @TABLE_SCHEMA AND i.TABLE_NAME = @TABLE_NAME GROUP BY i.TABLE_NAME, i.INDEX_NAME;"
-            ref lIndexes = dbr.list(db,sql_list_indexes,table)
+            ref lstIndexes = dbr.list(db,sql_list_indexes,table)
 
-            for m = 0; m < list.count(lIndexes); m+1
+            for m = 0; m < list.count(lstIndexes); m+1
             {
-                ref index = list.obj(lIndexes,m)
+                ref index = list.obj(lstIndexes,m)
                 iname = @@(index,"$INDEX_NAME")
 
                 ref clist = split(@@(index,"$COLUMN_LIST"),",")
@@ -620,6 +628,7 @@ program "dbm"
         do dbr.insert(db,"sys_model_log",sys_model_log)
 
         do dbr.close(db)
+        // do print(to.json(schema))
         do print("Modelo inferido exitosamente.")
 
         exception

@@ -8,7 +8,7 @@ program
     ref buffer=text.create()
 
     if @@(@context,"$schema/name") != "" {
-        DB_NAME = ranychars(tolower(trim(@@(@context,"$schema/name"))), " .:;-", "_")
+        DB_NAME = ranychars(tolower(trim(@@(@context,"$schema/name"))), " .:;-/\\", "_")
 
         // Verifica si la base de datos existe
         do text.say(buffer,"IF NOT EXISTS (SELECT name FROM sys.databases WHERE name = '"+DB_NAME+"')")
