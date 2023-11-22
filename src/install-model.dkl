@@ -6,28 +6,48 @@ program
 
     ref args = commandline("=")
 
+    action = trim(@@(args,"$action"))
     qname = trim(@@(args,"$db"))
     fsrc = trim(@@(args,"$model"))
     
     if qname == "" { do rise_error(1,"No se ha indicado una cadena de conexión (db).") }
-    if not(file.exists(fsrc)) { do rise_error(1,"No existe el archivo de origen o no se ha indicado el parámetro (model).") }
-
     do dbm.vQname(qname)
     engine = dbm.getEngineType(qname)
     supported_engines = "MY_SQL" //"MY_SQL,SQL_SERVER,POSTGRE_SQL"
     if not(containsword(engine,supported_engines)) { do rise_error(1,"El motor de base de datos de la conexión no esta soportada.") }
 
-    fext = file.extension(fsrc)
+    switch tolower(action)
+    {
+        case "infer-model"
+        {
+            do dbm.inferModel(qname)
+            break
+        }
+        case "show-model"
+        {
+            do dbm.showModel(qname)
+            break
+        }
+        case "show-last-error"
+        {
+            do dbm.showLastError(qname)
+            break
+        }
+        default
+        {
+            if not(file.exists(fsrc)) { do rise_error(1,"No existe el archivo de origen o no se ha indicado el parámetro (model).") }
+            fext = file.extension(fsrc)
+            
+            if fext == ".json" { ref schema = from.json(file.rtext(fsrc)) }
+            else if fext == ".ddm" { ref schema = getTableSchema(fsrc) }
+            else { do rise_error(1,"El tipo de archivo no esta soportado.") }
 
-    if fext == ".json" {
-        ref schema = from.json(file.rtext(fsrc))
-    } else if fext == ".ddm" {
-        ref schema = getTableSchema(fsrc)
-    } else { do rise_error(1,"El tipo de archivo no esta soportado.") }
+            ref db = dbr.open(qname)
+            fname = file.name(fsrc)
+            ref model = schema
 
-    ref db = dbr.open(qname)
-    fname = file.name(fsrc)
-    ref model = schema
-
-    do dbm.installModel(db,fname,model)
+            do dbm.installModel(db,fname,model)   
+            break
+        }
+    }
 }

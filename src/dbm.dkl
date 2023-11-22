@@ -1,4 +1,5 @@
 #include "dkli.dkh"
+#pattern function "function '$name' ()"
 #!
 program "dbm"
 {
@@ -158,7 +159,6 @@ program "dbm"
 
     function dbm.installModel(&db,modelid,jsonmodel)
     {
-        do errordet(@true)
         do dbm.checkLogTables(db)
 
         ref schema = jsonmodel
@@ -414,6 +414,218 @@ program "dbm"
             }
             do print(last_error())
             return @false
+        }
+    }
+
+    function dbm.showLastError(qname)
+    {
+        ref db = dbr.open(qname)
+        do dbm.checkLogTables(db)
+
+        last_error = dbr.str(db,"SELECT message FROM sys_model_ddl_log WHERE success ORDER BY sys_pk DESC LIMIT 1;",@null)
+
+        do dbr.close(db)
+        do print(last_error)
+
+        exception
+        {
+            if dbr.is_open(db){ do dbr.close(db) }
+            do rise_error(last_error_code(),last_error())
+        }
+    }
+
+    function dbm.showModel(qname)
+    {
+        ref db = dbr.open(qname)
+        do dbm.checkLogTables(db)
+
+        last_model = dbr.str(db,"SELECT IFNULL((SELECT model FROM sys_model_log WHERE model IS NOT NULL ORDER BY sys_pk DESC LIMIT 1),'{}') AS model;",@null)
+
+        do dbr.close(db)
+        do print(last_model)
+
+        exception
+        {
+            if dbr.is_open(db){ do dbr.close(db) }
+            do rise_error(last_error_code(),last_error())
+        }
+    }
+
+    function dbm.inferModel(qname)
+    {
+        ref db = dbr.open(qname)
+        do dbm.checkLogTables(db)
+        ref info = dba.getconnection(qname)
+
+        // Iniciar schema.
+        new schema
+        {
+            @"name": @@(info,"$DefaultSchema")
+            @"tables*": record.create()
+        }
+
+        // Obtener las tablas de una base de datos.
+        sql_list_tables = "SELECT t.TABLE_SCHEMA, t.TABLE_NAME FROM information_schema.`TABLES` t WHERE t.TABLE_SCHEMA = @DefaultSchema;"
+        ref lTables = dbr.list(db,sql_list_tables,info)
+        
+        for i = 0; i < list.count(lTables); i+1
+        {
+            ref table = list.obj(lTables,i)
+            tname = @@(table,"$TABLE_NAME")
+
+            // Crear objeto para una nueva tabla.
+            new otable
+            {
+                @"name": tname
+                @"columns*": record.create()
+                @"indexes*": record.create()
+            }
+
+            // Obtener las columnas de una tabla.
+            sql_list_columns = "SELECT c.TABLE_SCHEMA, c.TABLE_NAME, c.COLUMN_NAME, c.DATA_TYPE, IFNULL(c.CHARACTER_MAXIMUM_LENGTH,0) CHARACTER_MAXIMUM_LENGTH, IFNULL(c.NUMERIC_PRECISION,0) NUMERIC_PRECISION, IFNULL(c.NUMERIC_SCALE,0) NUMERIC_SCALE, c.COLUMN_TYPE, c.IS_NULLABLE, c.COLUMN_KEY, c.EXTRA FROM information_schema.`COLUMNS` c WHERE c.TABLE_SCHEMA = @TABLE_SCHEMA AND c.TABLE_NAME = @TABLE_NAME;"
+            ref lColumns = dbr.list(db,sql_list_columns,table)
+
+            for m = 0; m < list.count(lColumns); m+1
+            {
+                ref column = list.obj(lColumns,m)
+                cname = @@(column,"$COLUMN_NAME")
+
+                new ocolumn { @"name": cname }
+
+                // Definición del tipo de dato.
+                switch @@(column,"$DATA_TYPE")
+                {
+                    case "varchar"
+                    {
+                        ocolumn<"type"> : "string"
+                        ocolumn<"size"> : @@(column,"#CHARACTER_MAXIMUM_LENGTH")
+                        break
+                    }
+                    case "decimal"
+                    {
+                        ocolumn<"type"> : "decimal"
+                        ocolumn<"precision"> : @@(column,"#NUMERIC_PRECISION")
+                        ocolumn<"scale"> : @@(column,"#NUMERIC_SCALE")
+                        break
+                    }
+                    case "text"
+                    {
+                        ocolumn<"type"> : "memo"
+                        break
+                    }
+                    case "mediumtext"
+                    {
+                        ocolumn<"type"> : "mmemo"
+                        break
+                    }
+                    case "longtext"
+                    {
+                        ocolumn<"type"> : "lmemo"
+                    }
+                    case "int"
+                    {
+                        ocolumn<"type"> : "int"
+                        break
+                    }
+                    case "tinyint"
+                    {
+                        ocolumn<"type"> : "bool"
+                        break
+                    }
+                    case "bit"
+                    {
+                        ocolumn<"type"> : "bool"
+                        break
+                    }
+                    default
+                    {
+                        ocolumn<"type"> : @@(column,"$DATA_TYPE")
+
+                        size = @@(column,"#CHARACTER_MAXIMUM_LENGTH")
+                        precision = @@(column,"#NUMERIC_PRECISION")
+
+                        if size > 0 { ocolumn<"size"> : size }
+                        else if precision > 0 { ocolumn<"size"> : precision }
+                        break
+                    }
+                }
+
+                // Definición de reestricciones.
+                if @@(column,"$COLUMN_KEY") == "UNI" { ocolumn<"isUnique"> : @true }
+                if @@(column,"$COLUMN_KEY") == "PRI" { ocolumn<"isKey"> : @true }
+                if not(parse.bool(@@(column,"$IS_NULLABLE"))) { ocolumn<"isRequired"> : @true }
+                if @@(column,"$EXTRA") == "auto_increment" { ocolumn<"isAutoIncrement"> : @true }
+                if @@(column,"$COLUMN_KEY") == "MUL"
+                {
+                    // Obtener la relación de un campo FK.
+                    sql_foreign_key = "SELECT f.TABLE_NAME, f.COLUMN_NAME, f.REFERENCED_TABLE_NAME, f.REFERENCED_COLUMN_NAME FROM information_schema.KEY_COLUMN_USAGE f WHERE f.TABLE_SCHEMA = @TABLE_SCHEMA AND f.TABLE_NAME = @TABLE_NAME AND f.COLUMN_NAME = @COLUMN_NAME;"
+                    ref fk = dbr.rec(db,sql_foreign_key,column)
+
+                    ocolumn<"reference"> : @@(fk,"$REFERENCED_TABLE_NAME")
+                    ocolumn<"keyfield"> : @@(fk,"$REFERENCED_COLUMN_NAME")
+                }
+
+                // Agregar columna.
+                otable<"columns/"+cname+"*"> : ocolumn
+            }
+
+            // Obtener los indices de una tabla.
+            sql_list_indexes = "SELECT i.INDEX_NAME, GROUP_CONCAT(i.COLUMN_NAME ORDER BY SEQ_IN_INDEX) AS COLUMN_LIST, i.NON_UNIQUE FROM information_schema.STATISTICS i WHERE i.TABLE_SCHEMA = @TABLE_SCHEMA AND i.TABLE_NAME = @TABLE_NAME GROUP BY i.TABLE_NAME, i.INDEX_NAME;"
+            ref lIndexes = dbr.list(db,sql_list_indexes,table)
+
+            for m = 0; m < list.count(lIndexes); m+1
+            {
+                ref index = list.obj(lIndexes,m)
+                iname = @@(index,"$INDEX_NAME")
+
+                ref clist = split(@@(index,"$COLUMN_LIST"),",")
+                if list.count(clist) > 1
+                {
+                    // Crear objeto para un nuevo grupo de indice.
+                    new oindex
+                    {
+                        @"name": iname
+                        @"type": ifstr(@@(index,"#NON_UNIQUE") == 0, "unique", "")
+                        @"columns*": record.create()
+                    }
+
+                    go foreach.lstr(value:column) with(clist)
+                    {
+                        new c { @"name": column }
+                        oindex<"columns/"+column+"*"> : c
+                    }
+
+                    // Agregar indices.
+                    otable<"indexes/"+iname+"*"> : oindex
+                }
+            }
+
+            // Agregar tabla.
+            schema<"tables/"+tname+"*"> : otable
+        }
+
+        new sys_model_log
+        {
+            @"sys_pk": 0
+            @"sys_guid": uuid()
+            @"sys_dtcreated*": now()
+            @"sys_timestamp*": now()
+            @"source": @@(info,"$DefaultSchema")
+            @"install": to.json(schema)
+            @"analisys": "{}"
+            @"compatible": @true
+            @"success": @true
+            @"model": to.json(schema)
+        }
+        do dbr.insert(db,"sys_model_log",sys_model_log)
+
+        do dbr.close(db)
+        do print("Modelo inferido exitosamente.")
+
+        exception
+        {
+            if dbr.is_open(db){ do dbr.close(db) }
+            do print(last_error())
         }
     }
 }
