@@ -341,3 +341,22 @@ Acerca del proceso de generación
 1. EL modelo es validado sintácticamente de acuerdo a los patrones establecidos en ddm.dkh
 2. El modelo es transformado a JSON (primer paso de generación)
 3. El modelo descrito en JSON produce SQL o cualquier otra salida (segundo paso de generación)
+
+# Utilidades
+## dba
+Utilidad de línea de comandos para administrar conexiones y crear bases de datos.
+
+```
+./dkl dba [opción] [parámetros]
+```
+Opciones:
+
+* ```show all``` Muestra todas las conexiones en el repositorio
+* ```show``` Muestra la información de la conexión indicada en el parámetro ```qn```
+* ```delete``` Elimina la conexión indicada en el parámetro ```qn```
+* ```create database``` Crea una base de datos y su registro de conexión con la información de los parámetros ```qn``` y ```settings```
+* ```create connection``` Crea un registro de conexión con la información de los parámetros ```qn``` y ```settings```
+
+Parámetros
+* ```qn``` Indica un nombre cualificado de conexión (nombreconexion@grupodeaplicacion)
+* ```settings``` Indica un conjunto de valores para establecer una conexión a la base de datos (vea (https://docs.induxsoft.net/es/devkron/Bibliotecas-de-funciones/dbr/dbr.md)[Funciones de administración de conexiones])
