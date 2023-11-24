@@ -359,4 +359,22 @@ Opciones:
 
 Parámetros
 * ```qn``` Indica un nombre cualificado de conexión (nombreconexion@grupodeaplicacion)
-* ```settings``` Indica un conjunto de valores para establecer una conexión a la base de datos vea (https://docs.induxsoft.net/es/devkron/Bibliotecas-de-funciones/dbr/dbr.md)[Funciones de administración de conexiones]
+* ```settings``` Indica un conjunto de valores para establecer una conexión a la base de datos vea [Funciones de administración de conexiones](https://docs.induxsoft.net/es/devkron/Bibliotecas-de-funciones/dbr/dbr.md)
+
+Ejemplos
+```
+# Mostrar todas las conexiones
+./dkl dba show all
+
+# Mostrar información de una conexión
+./dkl dba show qn=miconexion@grupoapps
+
+# Eliminar una conexión
+./dkl dba delete qn=miconexion@grupoapps
+
+# Crear una conexión a una base de datos existente
+./dkl dba create connection qn=miconexion@grupoapps "settings=Engine:MY_SQL,Host:nombreoipdelhost,Port:3306,UserName:root, Password:12345,SslMode:0,DefaultSchema:nombrebasededatos"
+
+# Crear una base de datos y su registro de conexión
+./dkl dba create database qn=miconexion@grupoapps "settings=Engine:MY_SQL,Host:nombreoipdelhost,Port:3306,UserName:root, Password:12345,SslMode:0,DefaultSchema:nombrebasededatos"
+```
