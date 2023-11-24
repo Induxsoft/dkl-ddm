@@ -1,0 +1,152 @@
+#include "dkli.dkh"
+#!
+program "dba"
+{
+    #include "functions.dkh"
+    #include "serialize.dkh"
+    #include "dbr.dkh"
+
+    // Comprobar si existe un nombre de grupo de aplicación en el repositorio de conexiones
+    exist_appgroup::app
+    {
+        ref l=dba.apps("*")
+        for i=0;i<@count(l)
+        {
+            if tolower(trim(list.str(l,i)))==tolower(trim(app)) { return @true }
+        }
+
+        return @false
+    }
+
+    // Imprimir todas las conexiones
+    show_connections::
+    {
+        do print("\nRepositorio de conexiones\n")
+
+        ref l=dba.apps("*")
+        for i=0;i<@count(l)
+        {
+            if trim(list.str(l,i))!=""
+            {
+                do print(trim(list.str(l,i))+" (Grupo de aplicación)")
+                ref lc= dba.cnns(trim(list.str(l,i)))
+                for j=0;j<@count(lc)
+                {
+                    do print("\t"+trim(list.str(lc,j))+"@"+trim(list.str(l,i)) +" (Conexión)")
+                }
+                do print ("---------------------")
+                do print("")
+            }
+        }
+    }
+
+    // Inicia el programa
+
+    ref params=commandline("=")
+    
+    /* 
+    -1 = No hay opción indicada (error), 
+    0  = Crear base de datos y conexión, 
+    1  = Solo crear conexión con los datos indicados
+    10 = Mostrar todas conexiones
+    12 = Eliminar conexión
+    14 = Mostrar información de una conexión
+    */
+    mode=-1 
+
+    should_delete=@false //Bandera para eliminar conexión si falla creación de base de datos
+
+    if field.exist(params,"create") && field.exist(params,"database") && mode<0     { mode=0 }
+    if field.exist(params,"create") && field.exist(params,"connection") && mode<0   { mode=1 }
+
+    if field.exist(params,"show") && field.exist(params,"all") && mode<0     { mode=10 }
+    if field.exist(params,"delete") && mode<0     { mode=12 }
+    if field.exist(params,"show") && field.exist(params,"qn") && mode<0     { mode=14 }
+
+    if mode==10 
+    {
+        do show_connections()
+        return
+    }
+    
+    ref cfg=record.create()
+
+    qn=trim(@@(params,"qn"))
+    settings=trim(@@(params,"$settings"))
+
+    if mode<0                { do rise_error(0,"Debe indicar la acción en la línea de comando. P.e.: './dkl dba create database qn=\"cnn@app\" setting=\"Engine:MY_SQL,...\"")}
+    if qn==""                { do rise_error(0,'Debe indicar un nombre cualificado de conexión en el parámetro qn con la forma "qn=dbname@appgroup"')}
+    if not(contains(qn,"@")) { do rise_error(0,"El parámetro 'qn' no es válido")}
+
+    if mode==12 || mode==14 { if not(dba.cnnexists(qn)) { do rise_error(0,"El nombre de conexión no existe.")} }
+
+    switch mode
+    {
+        case 12
+        {
+            do dba.delconnection(qn)
+            do print("Conexión eliminada con éxito!")
+            return
+        }
+        case 14
+        {
+            do print ("")
+            do print(to.json(dba.getconnection(qn)))
+            return
+        }
+    }
+
+
+    if dba.cnnexists(qn)     { do rise_error(0,"El nombre de conexión indicado ya existe, elimínelo del archivo connections.xml para continuar")}
+    if settings==""          { do rise_error("No se han indicado valores de conexión para el parámetro 'settings'")}
+
+    appg=list.str(split(qn,"@"),1) // Grupo de aplicación
+    dbn=list.str(split(qn,"@"),0)  // Conexión
+
+    codeblock
+    {
+        // Formar el registro de configuración de conexión
+        ref keyvalues=split(settings,",")
+        for i=0;i<@count(keyvalues)
+        {
+            ref kv=split(list.str(keyvalues,i),":")
+            cfg<trim(list.str(kv,0))>:trim(list.str(kv,1))
+        }
+        exception{ do rise_error(0, "La cadena de configuración de la conexión especificada en 'settings' es inválida, asegúrese de indicar pares clave:valor (separados por :) y delimitados por coma. Ej.: 'clave1:valor1,clave2:valor2,...'")}
+    }
+    
+    // Crear el grupo de aplicación si no existe
+    if not(exist_appgroup(appg)) 
+    { 
+        do dba.addapp(appg)
+    }
+  
+    do print("***")
+    // Crear base de datos y registro de conexión
+    switch mode
+    {
+        case 0
+        { 
+            should_delete=@true
+            do dba.createdb(qn,cfg) 
+            do print("Base de datos y registro de conexión creados con éxito!")
+        }
+        case 1 
+        { 
+            do dba.createconnection(qn,cfg,@false,"") 
+            do print("Registro de conexión creado con éxito!")
+        }
+    }
+    
+    exception
+    {
+        do print(last_error())
+
+        // Eliminar la conexión si fue creada pero no la base de datos
+        codeblock
+        {
+            if dba.cnnexists(qn) && should_delete { do dba.delconnection(qn) }
+            exception { }
+        }
+    }
+}
