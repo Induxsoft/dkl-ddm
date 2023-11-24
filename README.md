@@ -359,4 +359,4 @@ Opciones:
 
 Parámetros
 * ```qn``` Indica un nombre cualificado de conexión (nombreconexion@grupodeaplicacion)
-* ```settings``` Indica un conjunto de valores para establecer una conexión a la base de datos (vea (https://docs.induxsoft.net/es/devkron/Bibliotecas-de-funciones/dbr/dbr.md)[Funciones de administración de conexiones])
+* ```settings``` Indica un conjunto de valores para establecer una conexión a la base de datos vea (https://docs.induxsoft.net/es/devkron/Bibliotecas-de-funciones/dbr/dbr.md)[Funciones de administración de conexiones]
