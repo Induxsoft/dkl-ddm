@@ -373,7 +373,7 @@ Ejemplos
 ./dkl dba delete qn=miconexion@grupoapps
 
 # Crear una conexión a una base de datos existente
-# Observe como está formado el parámetro settings para indicar los datos de la conexión
+# Observe cómo está formado el parámetro settings para indicar los datos de la conexión
 ./dkl dba create connection qn=miconexion@grupoapps "settings=Engine:MY_SQL,Host:nombreoipdelhost,Port:3306,UserName:root, Password:12345,SslMode:0,DefaultSchema:nombrebasededatos"
 
 # Crear una base de datos y su registro de conexión
