@@ -25,7 +25,15 @@ program
         }
         case "show-model"
         {
+            ref db = dbr.open(qname)
+            if not(dbm.existLogTables(db))
+            {
+                do dbm.inferModel(qname)
+                do print("-- ------------------------- --")
+            }
             do dbm.showModel(qname)
+
+            if dbr.is_open(db){ do dbr.close(db) }
             break
         }
         case "show-last-error"
@@ -38,14 +46,18 @@ program
             if not(file.exists(fsrc)) { do rise_error(1,"No existe el archivo de origen o no se ha indicado el parámetro (model).") }
             fext = file.extension(fsrc)
             
-            if fext == ".json" { ref schema = from.json(file.rtext(fsrc)) }
-            else if fext == ".ddm" { ref schema = getTableSchema(fsrc) }
+            if fext == ".json" { ref model = from.json(file.rtext(fsrc)) }
+            else if fext == ".ddm" { ref model = getTableSchema(fsrc) }
             else { do rise_error(1,"El tipo de archivo no esta soportado.") }
 
             ref db = dbr.open(qname)
-            fname = file.name(fsrc)
-            ref model = schema
+            if not(dbm.existLogTables(db))
+            {
+                do dbm.inferModel(qname)
+                do print("-- ------------------------- --")
+            }
 
+            fname = file.name(fsrc)
             do dbm.installModel(db,fname,model)   
             break
         }

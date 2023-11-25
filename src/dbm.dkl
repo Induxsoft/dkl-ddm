@@ -33,17 +33,29 @@ program "dbm"
         if not(contains(list_cnns,cnn)) { do rise_error(1,"No se encontro la conexión " + cnn) }
     }
 
-    function dbm.checkLogTables(&db)
+    function dbm.createLogTables(&db)
     {
-        ref tbl1 = dbr.rec(db,"SHOW TABLES LIKE 'sys_model_log';",@null)
-        ref tbl2 = dbr.rec(db,"SHOW TABLES LIKE 'sys_model_ddl_log';",@null)
-
-        if not(isnull(tbl1)) && not(isnull(tbl2)) { return }
-
         ref schema = getTableSchema("dbm.sys_tables.ddm")
         sql_create_dbm_sys_tables = getSQL(schema)
 
         do dbr.execute(db,sql_create_dbm_sys_tables,@null)
+    }
+
+    function dbm.existLogTables(&db)
+    {
+        exist = @false
+
+        ref tbl1 = dbr.rec(db,"SHOW TABLES LIKE 'sys_model_log';",@null)
+        ref tbl2 = dbr.rec(db,"SHOW TABLES LIKE 'sys_model_ddl_log';",@null)
+
+        if not(isnull(tbl1)) && not(isnull(tbl2)) { exist = @true }
+
+        return exist
+    }
+
+    function dbm.checkLogTables(&db)
+    {
+        if not(dbm.existLogTables(db)) { do dbm.createLogTables(db) }
     }
 
     function dbm.insert_sys_model_ddl_log(&db,fk,act,sql,&json,res,msg)
@@ -426,6 +438,7 @@ program "dbm"
         do dbm.checkLogTables(db)
 
         last_error = dbr.str(db,"SELECT message FROM sys_model_ddl_log WHERE success ORDER BY sys_pk DESC LIMIT 1;",@null)
+        if trim(last_error) == "" { last_error = "No se encontraron errores." }
 
         do dbr.close(db)
         do print(last_error)
@@ -440,7 +453,7 @@ program "dbm"
     function dbm.showModel(qname)
     {
         ref db = dbr.open(qname)
-        do dbm.checkLogTables(db)
+        // do dbm.checkLogTables(db)
 
         last_model = dbr.str(db,"SELECT IFNULL((SELECT model FROM sys_model_log WHERE model IS NOT NULL ORDER BY sys_pk DESC LIMIT 1),'{}') AS model;",@null)
 
@@ -458,6 +471,7 @@ program "dbm"
     {
         ref db = dbr.open(qname)
         do dbm.checkLogTables(db)
+
         ref info = dba.getconnection(qname)
         do print("Modelo obtenido.")
 
