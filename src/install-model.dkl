@@ -53,7 +53,7 @@ program
             ref db = dbr.open(qname)
             if not(dbm.existLogTables(db))
             {
-                do dbm.inferModel(qname)
+                if not(dbm.inferModel(qname)) { break }
                 do print("-- ------------------------- --")
             }
 

@@ -413,8 +413,8 @@ module "ddm.json"
     */
     function ddm.compareColumns(a,b,table)
     {
-        ref columns_a = @@(a,"&tables/"+table+"/columns")
-        ref columns_b = @@(b,"&tables/"+table+"/columns")
+        ref columns_a = record.caseinsensitive(@@(a,"&tables/"+table+"/columns"))
+        ref columns_b = record.caseinsensitive(@@(b,"&tables/"+table+"/columns"))
         compatible = @true
 
         ref FieldsA = list.create_from_fields(columns_a)

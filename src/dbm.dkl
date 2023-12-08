@@ -437,7 +437,7 @@ program "dbm"
         ref db = dbr.open(qname)
         do dbm.checkLogTables(db)
 
-        last_error = dbr.str(db,"SELECT message FROM sys_model_ddl_log WHERE success ORDER BY sys_pk DESC LIMIT 1;",@null)
+        last_error = dbr.str(db,"SELECT message FROM sys_model_ddl_log WHERE NOT IFNULL(success,0) ORDER BY sys_pk DESC LIMIT 1;",@null)
         if trim(last_error) == "" { last_error = "No se encontraron errores." }
 
         do dbr.close(db)
@@ -644,11 +644,13 @@ program "dbm"
         do dbr.close(db)
         // do print(to.json(schema))
         do print("Modelo inferido exitosamente.")
+        return @true
 
         exception
         {
             if dbr.is_open(db){ do dbr.close(db) }
             do print(last_error())
+            return @false
         }
     }
 }
