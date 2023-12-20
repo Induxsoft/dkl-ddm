@@ -6,7 +6,7 @@ model "Induxsoft abstracts"
     {
         @"sys_pk" int key required autoincrement
         @"sys_guid" string(32) unique required
-        @"sys_dtcreated" datetime required
+        @"sys_dtcreated" datetime
         @"sys_timestamp" datetime required
         @"sys_info" string(32)
         @"sys_user" string(32)
