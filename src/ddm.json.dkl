@@ -503,6 +503,9 @@ module "ddm.json"
                         case "memo" { break }
                         case "mmemo" { break }
                         case "lmemo" { break }
+                        case "blob" { break }
+                        case "mediumblob" { break }
+                        case "longblob" { break }
                         case "string"
                         {
                             change<"curr_size"> : @@(column_a,"#size")
