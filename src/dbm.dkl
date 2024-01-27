@@ -484,7 +484,7 @@ program "dbm"
 
         do print("Iniciando lectura, espere un momento por favor.")
         // Obtener las tablas de una base de datos.
-        sql_list_tables = "SELECT t.TABLE_SCHEMA, t.TABLE_NAME FROM information_schema.`TABLES` t WHERE t.TABLE_SCHEMA = @DefaultSchema AND t.TABLE_NAME NOT IN ('sys_model_log','sys_model_ddl_log');"
+        sql_list_tables = "SELECT t.TABLE_SCHEMA, t.TABLE_NAME FROM information_schema.`TABLES` t WHERE t.TABLE_TYPE like '%TABLE%' AND t.TABLE_SCHEMA = @DefaultSchema AND t.TABLE_NAME NOT IN ('sys_model_log','sys_model_ddl_log');"
         ref lstTables = dbr.list(db,sql_list_tables,info)
         
         for i = 0; i < list.count(lstTables); i+1
