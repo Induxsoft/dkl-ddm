@@ -382,26 +382,18 @@ module "ddm.json"
     {
         if t1 == t2 { return t1 }
 
-        ref cfg = _null()
-        if isset("@CompTypeConfig") { ref cfg = @CompTypeConfig }
-        else 
-        {
-            text json
-            {$'
-            [
-                {"t1":"string", "t2":"memo", "use":"memo"},
-                {"t1":"string", "t2":"mmemo", "use":"mmemo"},
-                {"t1":"string", "t2":"lmemo", "use":"lmemo"},
-                {"t1":"memo", "t2":"mmemo", "use":"mmemo"},
-                {"t1":"memo", "t2":"lmemo", "use":"lmemo"},
-                {"t1":"mmemo", "t2":"lmemo", "use":"lmemo"},
-                {"t1":"int", "t2":"decimal", "use":"decimal"},
-                {"t1":"int", "t2":"bool", "use":"int"},
-                {"t1":"date", "t2":"datetime", "use":"datetime"},
-            ]
-            '}
-            ref cfg = from.json(json)
-        }
+        ref cfg = from.json('[
+            {"t1":"string", "t2":"memo", "use":"memo"},
+            {"t1":"string", "t2":"mmemo", "use":"mmemo"},
+            {"t1":"string", "t2":"lmemo", "use":"lmemo"},
+            {"t1":"memo", "t2":"mmemo", "use":"mmemo"},
+            {"t1":"mmemo", "t2":"lmemo", "use":"lmemo"},
+            {"t1":"memo", "t2":"lmemo", "use":"lmemo"},
+            {"t1":"int", "t2":"decimal", "use":"decimal"},
+            {"t1":"float", "t2":"decimal", "use":"decimal"},
+            {"t1":"int", "t2":"bool", "use":"int"},
+            {"t1":"date", "t2":"datetime", "use":"datetime"},
+        ]')
         
         go foreach.lobj(value:obj) with(cfg) {
             if (@@(obj,"$t1") == t1 && @@(obj,"$t2") == t2) || (@@(obj,"$t1") == t2 && @@(obj,"$t2") == t1) { return @@(obj,"$use") }
