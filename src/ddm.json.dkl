@@ -389,9 +389,13 @@ module "ddm.json"
             {"t1":"memo", "t2":"mmemo", "use":"mmemo"},
             {"t1":"mmemo", "t2":"lmemo", "use":"lmemo"},
             {"t1":"memo", "t2":"lmemo", "use":"lmemo"},
+            {"t1":"int", "t2":"bool", "use":"int"},
+            {"t1":"int", "t2":"float", "use":"float"},
+            {"t1":"int", "t2":"double", "use":"double"},
             {"t1":"int", "t2":"decimal", "use":"decimal"},
             {"t1":"float", "t2":"decimal", "use":"decimal"},
-            {"t1":"int", "t2":"bool", "use":"int"},
+            {"t1":"double", "t2":"decimal", "use":"decimal"},
+            {"t1":"float", "t2":"double", "use":"double"},
             {"t1":"date", "t2":"datetime", "use":"datetime"},
         ]')
         
