@@ -512,18 +512,27 @@ module "ddm.json"
                         }
                         case "decimal"
                         {
-                            change<"curr_precision"> : @@(column_a,"#precision")
-                            change<"curr_scale"> : @@(column_a,"#scale")
+                            a_precision = @@(column_a,"#precision")
+                            a_scale = @@(column_a,"#scale")
+                            b_precision = @@(column_b,"#precision")
+                            b_scale = @@(column_b,"#scale")
 
-                            change<"new_precision"> : @@(column_b,"#precision")
-                            change<"new_scale"> : @@(column_b,"#scale")
+                            // -2147483648 [11 dígitos en negativo] a 2147483647 [10 dígitos en positivo]
+                            int32 = 11
 
-                            int32 = 10 // Valor Maximo: 2.147.483.647
-                            max_precision = if(@@(column_a,"#precision") > @@(column_b,"#precision"), @@(column_a,"#precision"), @@(column_b,"#precision"))
-                            max_scale = if(@@(column_a,"#scale") > @@(column_b,"#scale"), @@(column_a,"#scale"), @@(column_b,"#scale"))
+                            change<"curr_precision"> : a_precision
+                            change<"curr_scale"> : a_scale
+                            change<"new_precision"> : b_precision
+                            change<"new_scale"> : b_scale
 
-                            if same_type { max_precision = (max_precision + max_scale) }
-                            else { max_precision = (int32 + max_scale) }
+                            max_precision = if(a_precision > b_precision, a_precision, b_precision)
+                            max_scale = if(a_scale > b_scale, a_scale, b_scale)
+
+                            if not(same_type) { max_precision = (int32 + max_scale) }
+                            // else
+                            // {
+                            //     max_precision = (max_precision + max_scale)
+                            // }
 
                             change<"comp_precision"> : max_precision
                             change<"comp_scale"> : max_scale
