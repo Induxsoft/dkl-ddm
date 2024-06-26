@@ -7,6 +7,8 @@ module "ddm.json"
     @ENTITY="entity"
     @FIELD="field"
     @INDEX="index"
+    @WIDE_COMPATIBILITY = "widecompatibility"
+    @STRICT_COMPATIBILITY = "strictcompatibility"
 
     @ALIAS_STRING="str,varchar"
     @ALIAS_BOOL="boolean,bit"
@@ -284,6 +286,14 @@ module "ddm.json"
                 {
                     do list.add(n,list.obj(nodes,i))
                 }
+                case @WIDE_COMPATIBILITY
+                {
+                    do list.add(n,list.obj(nodes,i))
+                }
+                case @STRICT_COMPATIBILITY
+                {
+                    do list.add(n,list.obj(nodes,i))
+                }
             }
         }
     }
@@ -297,6 +307,8 @@ module "ddm.json"
     function getTableSchema(fsrc)
     {
         xml = runscript(fsrc)
+
+        compatibility="wide"
 
         ref obj = parse.xmlStr(xml)
         ref abstracts = record.create()
@@ -320,8 +332,12 @@ module "ddm.json"
         for i = 0; i < @count(objectNodes)   
         {
             ref o=@item(objectNodes,i)
+            if @@(o,"name") == @WIDE_COMPATIBILITY { compatibility="wide" }
+            if @@(o,"name") == @STRICT_COMPATIBILITY { compatibility="strict" }
             if @@(o,"name") == @ENTITY {
-                tables<@@(o,"attributes/name")+"*"> : createTableObject(o,abstracts)
+                ref t=createTableObject(o,abstracts)
+                t<"compatibility">:compatibility
+                tables<@@(o,"attributes/name")+"*"> : t
             }
         }
 
@@ -415,7 +431,10 @@ module "ddm.json"
     {
         ref columns_a = record.caseinsensitive(@@(a,"&tables/"+table+"/columns"))
         ref columns_b = record.caseinsensitive(@@(b,"&tables/"+table+"/columns"))
+        
         compatible = @true
+        compatibility_a = @@(a,"$tables/"+table+"/compatibility")
+        compatibility_b = @@(b,"$tables/"+table+"/compatibility")
 
         ref FieldsA = list.create_from_fields(columns_a)
         ref FieldsB = list.create_from_fields(columns_b)
@@ -443,11 +462,17 @@ module "ddm.json"
                 ComparedColumn<"action"> : "new"
                 ComparedColumn<"new*"> : column_b
             }
-            else if isnull(column_a) && (@@(column_b,"#isRequired") || @@(column_b,"#isKey"))
+            else if isnull(column_a) && (@@(column_b,"#isRequired") || @@(column_b,"#isKey")) 
             {
                 compatible = @false
                 ComparedColumn<"action"> : "incompatible"
                 ComparedColumn<"message"> : "No se puede añadir el campo porque tiene establecido el atributo 'required' o es 'PrimaryKey'."
+            }
+            else if isnull(column_b) && (@@(column_a,"#isRequired") || @@(column_a,"#isKey")) && compatibility_b=="strict"
+            {
+                compatible = @false
+                ComparedColumn<"action"> : "incompatible"
+                ComparedColumn<"message"> : "El campo existente tiene establecido el atributo 'required' o es 'PrimaryKey'."
             }
             else if not(isnull(column_a)) && not(isnull(column_b))
             {

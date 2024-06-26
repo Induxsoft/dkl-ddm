@@ -13,6 +13,14 @@
 
 #pattern enumItem "@'@text':'*key'"
 
+#def widecompatibility "widecompatibility"
+#pattern widecompatibility "wide compatibility"
+//#pattern widecompatibility "wide compatibility: '@entity'"
+
+#def strictcompatibility "strictcompatibility"
+#pattern strictcompatibility "strict compatibility"
+//#pattern strictcompatibility "strict compatibility: '@entity'"
+
 #def entity(name) "entity"
 #pattern entity "entity '@name'"
 #pattern entity "entity '@name' : '@parent'"

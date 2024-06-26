@@ -202,6 +202,11 @@ model "CRM Sales"
 }
 ```
 
+### Alternar verificación de compatibilidad
+
+* wide compatibility (predeterminado)
+* strict compatibility
+
 ### Definición de columnas
 Las columnas se definen dentro del cuerpo de las entidades o abstracciones.
 
