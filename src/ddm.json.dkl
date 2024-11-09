@@ -399,6 +399,8 @@ module "ddm.json"
         if t1 == t2 { return t1 }
 
         ref cfg = from.json('[
+            {"t1":"char", "t2":"varchar", "use":"varchar"},
+            {"t1":"char", "t2":"string", "use":"string"},
             {"t1":"string", "t2":"memo", "use":"memo"},
             {"t1":"string", "t2":"mmemo", "use":"mmemo"},
             {"t1":"string", "t2":"lmemo", "use":"lmemo"},
@@ -407,7 +409,8 @@ module "ddm.json"
             {"t1":"memo", "t2":"lmemo", "use":"lmemo"},
             {"t1":"bit", "t2":"tinyint", "use":"tinyint"},
             {"t1":"bit", "t2":"bool", "use":"bool"},
-            {"t1":"int", "t2":"bool", "use":"int"},
+            {"t1":"bool", "t2":"int", "use":"int"},
+            {"t1":"tinyint", "t2":"int", "use":"int"},
             {"t1":"int", "t2":"float", "use":"float"},
             {"t1":"int", "t2":"double", "use":"double"},
             {"t1":"int", "t2":"decimal", "use":"decimal"},

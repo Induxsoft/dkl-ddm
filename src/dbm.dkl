@@ -569,9 +569,12 @@ program "dbm"
                     }
                 }
 
-                // Definición de reestricciones.
-                if @@(column,"$COLUMN_KEY") == "UNI" { ocolumn<"isUnique"> : @true }
+                /**
+                * Definición de reestricciones.
+                * Al crear una tabla sin un campo PRIMARY KEY definido explícitamente, pero que cuente con un UNIQUE INDEX compuesto, el motor de base de datos MySQL establece a las columnas dentro del índice como claves primarias.
+                */
                 if @@(column,"$COLUMN_KEY") == "PRI" { ocolumn<"isKey"> : @true }
+                if @@(column,"$COLUMN_KEY") == "UNI" { ocolumn<"isUnique"> : @true }
                 if not(parse.bool(@@(column,"$IS_NULLABLE"))) { ocolumn<"isRequired"> : @true }
                 if @@(column,"$EXTRA") == "auto_increment" { ocolumn<"isAutoIncrement"> : @true }
 
@@ -592,7 +595,7 @@ program "dbm"
             }
 
             // Obtener los indices de una tabla.
-            sql_list_indexes = "SELECT i.INDEX_NAME, GROUP_CONCAT(i.COLUMN_NAME ORDER BY SEQ_IN_INDEX) AS COLUMN_LIST, i.NON_UNIQUE FROM information_schema.STATISTICS i WHERE i.TABLE_SCHEMA = @TABLE_SCHEMA AND i.TABLE_NAME = @TABLE_NAME GROUP BY i.TABLE_NAME, i.INDEX_NAME;"
+            sql_list_indexes = "SELECT i.TABLE_NAME, i.INDEX_NAME, GROUP_CONCAT(i.COLUMN_NAME ORDER BY SEQ_IN_INDEX) AS COLUMN_LIST, i.NON_UNIQUE FROM information_schema.STATISTICS i WHERE i.TABLE_SCHEMA = @TABLE_SCHEMA AND i.TABLE_NAME = @TABLE_NAME GROUP BY i.TABLE_NAME, i.INDEX_NAME;"
             ref lstIndexes = dbr.list(db,sql_list_indexes,table)
 
             for m = 0; m < list.count(lstIndexes); m+1
@@ -615,6 +618,8 @@ program "dbm"
                     {
                         new c { @"name": column }
                         oindex<"columns/"+column+"*"> : c
+                        // Remover propiedad 'isKey' creada por el índice compuesto.
+                        do field.remove(otable,"columns/"+column+"/isKey")
                     }
 
                     // Agregar indices.
