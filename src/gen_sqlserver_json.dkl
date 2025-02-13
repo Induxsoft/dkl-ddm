@@ -2,7 +2,7 @@
 #!
 program
 {
-    #include "ddm.mysql.dkl"
+    #include "ddm.sqlserver.dkl"
     
     @context<"output">:"text"
     @context<"text">:to.json(schema2sqlserver(@@(@context,"&schema")))

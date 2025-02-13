@@ -2,6 +2,12 @@
 #!
 program
 {
+    #include "functions.dkh"
+    #include "serialize.dkh"
+    #include "dbr.dkh"
+
+    #include "ddm.json.dkl"
+    #include "ddm.mysql.dkl"
     #include "dbm.dkl"
 
     ref args = commandline("=")

@@ -264,47 +264,10 @@ Los archivos incluidos son:
 
 ## Uso de las herramientas
 
-### Generación de estrctura desde DDM
+### Instalación de modelos (install-model.dkl)
 
 ```
-dkl dbgen "src=archivo_fuente" "fmt=programa_generador" "out=archivo_salida"
-
-```
-* `src`: es la ruta y el nombre de un archivo en dialecto DDM
-* `fmt` (opcional): es el nombre del programa generador de segundo paso, si este parámetro se omite, se producirá como salida un objeto JSON que representa la estructura como resultado de la generación de primer paso.
-* `out`: es el archivo en donde se escribirán los resultados de la generación, si se omite el resultado se imprimirá como salida de la consola.
-
-Ejemplo de línea de comando para generar código MySQL
-```
-dkl dbgen "src=modelo.dkl" "fmt=gen_mysql.dkl" "out=script.sql"
-```
-Ejemplo de línea de comando para generar código SQLServer
-```
-dkl dbgen "src=modelo.dkl" "fmt=gen_sqlserver.dkl" "out=script.sql"
-```
-
-### Comparación de dos modelos y generación de actualización
-```
-dkl dbgen "a=archivo_fuente_A" "b=archivo_fuente_B" "c=lista,de,tablas,a,filtrar" "fmt=programa_generador" "out=archivo_salida"
-```
-* `a`: es la ruta y el nombre de un archivo json que representa la estructura como resultado de la generación de primer paso.
-* `b`: es la ruta y el nombre de un archivo json que representa la estructura como resultado de la generación de primer paso.
-* `c` (opcional): es una lista de nombres de tablas separadas por coma(,) las cuales seran comparadas.
-* `fmt` (opcional): es el nombre del programa generador de segundo paso, si este parámetro se omite, se producirá como salida un objeto JSON que representa la estructura como resultado de la generación de primer paso.
-* `out`: es el archivo en donde se escribirán los resultados de la generación, si se omite el resultado se imprimirá como salida de la consola.
-
-Ejemplo de línea de comando para comparar 2 esquemas y generar nuevo código MySQL
-```
-dkl dbgen "a=esquema_a.json" "b=esquema_b.json" "fmt=gen_mysql.dkl" "out=script.sql"
-```
-Ejemplo de línea de comando para comparar 2 esquemas y generar nuevo código SQLServer
-```
-dkl dbgen "a=esquema_a.json" "b=esquema_b.json" "fmt=gen_sqlserver.dkl" "out=script.sql"
-```
-
-### Instalación de modelos
-```
-dkl install-model "db=mi_conexión" "model=mi_modelo"
+dkl install-model db="mi_conexión" model="mi_modelo"
 ```
 * `db`: Cadena con el nombre cualificado de una conexión existente.
 * `model`: Es la ruta y nombre del archivo (modelo) `.ddm` o `.json` que representa la estructura de una base de datos.
@@ -324,7 +287,7 @@ Campos incompatibles en true
 * required
 * primarykey
 
-#### Funciones de install-model
+#### Funciones
 
 ```
 dkl install-model "db=mi_conexion" "action=funcion"
@@ -348,7 +311,9 @@ Acerca del proceso de generación
 3. El modelo descrito en JSON produce SQL o cualquier otra salida (segundo paso de generación)
 
 # Utilidades
+
 ## dba
+
 Utilidad de línea de comandos para administrar conexiones y crear bases de datos.
 
 ```
@@ -383,4 +348,76 @@ Ejemplos
 
 # Crear una base de datos y su registro de conexión
 ./dkl dba create database qn=miconexion@grupoapps "settings=Engine:MY_SQL,Host:nombreoipdelhost,Port:3306,UserName:root, Password:12345,SslMode:0,DefaultSchema:nombrebasededatos"
+```
+
+## dbgen
+
+Utilidad de línea de comandos para generar estructuras de datos.
+
+### Generación de estructura desde DDM
+
+Genera la estructura sql o json a partir de un archivo Devkron Data Model (DDM) y lo guarda en la ruta especificada.
+
+```powershell
+dkl dbgen src="archivo_fuente" fmt="programa_generador" out="archivo_salida"
+
+```
+
+- `src`: es la ruta y el nombre de un archivo en dialecto DDM
+- `fmt` (opcional): es el nombre del programa generador de segundo paso, si este parámetro se omite, se producirá como salida un objeto JSON que representa la estructura como resultado de la generación de primer paso.
+- `out`: es el archivo en donde se escribirán los resultados de la generación.
+
+Ejemplo de línea de comando para generar código MySQL
+```powershell
+dkl dbgen src="modelo.ddm" fmt="gen_mysql.dkl" out="script.sql"
+```
+
+Ejemplo de línea de comando para generar código SQLServer
+```powershell
+dkl dbgen src="modelo.ddm" fmt="gen_sqlserver.dkl" out="script.sql"
+```
+
+### Comparación de dos modelos y generación de actualización
+
+```powershell
+dkl dbgen a="archivo_fuente_A" b="archivo_fuente_B" c="lista,de,tablas,a,filtrar" fmt="programa_generador" out="archivo_salida"
+```
+
+- `a`: es la ruta y el nombre de un archivo json que representa la estructura como resultado de la generación de primer paso.
+- `b`: es la ruta y el nombre de un archivo json que representa la estructura como resultado de la generación de primer paso.
+- `c` (opcional): es una lista de nombres de tablas separadas por coma(,) las cuales serán comparadas.
+- `fmt` (opcional): es el nombre del programa generador de segundo paso, si este parámetro se omite, se producirá como salida un objeto JSON que representa la estructura como resultado de la generación de primer paso.
+- `out`: es el archivo en donde se escribirán los resultados de la generación.
+
+Ejemplo de línea de comando para comparar 2 esquemas y generar nuevo código MySQL
+```powershell
+dkl dbgen a="esquema_a.json" b="esquema_b.json" fmt="gen_mysql.dkl" out="script.sql"
+```
+
+Ejemplo de línea de comando para comparar 2 esquemas y generar nuevo código SQLServer
+```powershell
+dkl dbgen a="esquema_a.json" b="esquema_b.json" fmt="gen_sqlserver.dkl" out="script.sql"
+```
+
+### Generar estructura desde una conexión
+
+Genera la estructura DDM o JSON a partir de una conexión (qname) y lo guarda en la ruta especificada.
+
+```powershell
+dkl dbgen db="qname" fmt="ddm/json" out="archivo_salida" schema="base_de_datos"
+```
+
+- `db`: Cadena con el nombre cualificado de una conexión existente. **Requerido**
+- `fmt`: Formato de salida (ddm/json). **Opcional**, si se omite se asume "ddm".
+- `out`: Ruta y nombre del archivo donde se escribirá el resultado de la generación. **Requerido**
+- `schema`: Nombre de la base de datos del que se desea obtener su estructura. **Opcional**, si se omite se asume la base de datos configurada en la cadena de conexión (qname).
+
+Ejemplo de línea de comando para generar la estructura DDM a partir de una conexión.
+```powershell
+dkl dbgen db="miconexion@grupoapps" fmt="ddm" out="ruta/archivo.ddm"
+```
+
+Ejemplo de línea de comando para generar la estructura JSON a partir de una conexión.
+```powershell
+dkl dbgen db="miconexion@grupoapps" fmt="json" out="ruta/archivo.json"
 ```

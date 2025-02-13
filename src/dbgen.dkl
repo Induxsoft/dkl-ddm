@@ -4,20 +4,11 @@ program "dbgen"
 {
     #include "functions.dkh"
     #include "serialize.dkh"
+    #include "dbr.dkh"
 
     #include "ddm.json.dkl"
-
-    /*  Punto de entrada del programa
-        Argumentos de línea de comando: 
-            dkl dbgen src=origen fmt=formato_salida out=salida
-            - origen Es un archivo (incluyendo ruta) dkl con la definición de la estructura
-            - formato de salida Es el nombre de un programa existente que produce sql o la etiqueta 'json_schema', si se omite se asume 'json_schema'
-              para el formato intermedio
-            - salida Es un archivo en el que se escribirá el resultado o bien si se omite, se imprime en la consola
-        
-        Ejemplos:
-         dkl dbgen src=mibasededatos.dkl fmt=mysql out=script.sql
-    */
+    #include "ddm.mysql.dkl"
+    #include "dbm.dkl"
 
     ref args=commandline("=")
 
@@ -26,20 +17,34 @@ program "dbgen"
     fsrc = @@(args,"$src")
     fout = @@(args,"$out")
     dout = dir.name(fout)
+    cnn = @@(args,"$db")
+    fmt = tolower(trim(@@(args,"$fmt")))
+    gen = ""
 
     ACTION = 0
     TABLES = 1
     COMPATIBILITY = 2
+    INFER = 3
 
     if field.exist(args,"src") { ACTION = TABLES }
-    if field.exist(args,"a") || field.exist(args,"b") { ACTION = COMPATIBILITY }
+    else if field.exist(args,"a") || field.exist(args,"b") { ACTION = COMPATIBILITY }
+    else if field.exist(args,"db") {
+        if fmt == "" { fmt = "ddm" }
+        ACTION = INFER
+    }
 
-    generador = tolower(trim(@@(args,"$fmt")))
-    if containsword(generador,"mysql,gen_mysql,gen_mysql.dkl") { args<"fmt"> : "gen_mysql.dkl" }
-    else if containsword(generador,"sqlserver,gen_sqlserver,gen_sqlserver.dkl") { args<"fmt"> : "gen_sqlserver.dkl" }
-    else { args<"fmt"> : "" }
+    if isanyword(fmt,",json,json_schema") { fmt = "json" }
+    else if isanyword(fmt,"mysql,gen_mysql,gen_mysql.dkl") {
+        gen = "gen_mysql.dkl"
+        fmt = "sql"
+    }
+    else if isanyword(fmt,"sqlserver,gen_sqlserver,gen_sqlserver.dkl") {
+        gen = "gen_sqlserver.dkl"
+        fmt = "sql"
+    }
 
     ref schema = @null
+    output = ""
 
     switch ACTION
     {
@@ -47,7 +52,8 @@ program "dbgen"
         {
             if not(file.exists(fsrc)) { do rise_error(1,"No existe el archivo de origen, o no se ha indicado el parámetro.") }
             if not(dir.exists(dout)) { do rise_error(1,"No existe la ruta de salida, o no se ha indicado el parámetro.") }
-            ref schema = getTableSchema(fsrc)
+            
+            ref schema:getTableSchema(fsrc)
             break
         }
         case COMPATIBILITY
@@ -58,39 +64,60 @@ program "dbgen"
 
             fil = trim(@@(args,"$c"))
             ref filter = if(fil=="", @null, split(fil,","))
-            ref schema = ddm.analyze(srcA,srcB,filter)
+            ref schema:ddm.analyze(srcA,srcB,filter)
             break
         }
-        default { do rise_error(1,"Debe indicar un archivo de origen (src, a, b).") }
-    }
-    
-    if @@(args,"$fmt")=="" || @@(args,"$fmt")=="json_schema"
-    {
-        output=to.json(schema)
-    }
-    else
-    {
-        new context
+        case INFER
         {
-            @"args*":args
-            @"schema*":schema
-            @"output":"standard" //Si el programa cambia este valor a 'text', el resultado estará en el miembro 'text'
-        }
+            if not(dir.exists(dout)) { do rise_error(1,"No existe la ruta de salida, o no se ha indicado el parámetro.") }
 
-        output=runscript(@@(args,"$fmt"),"context",context)
+            ref db = dbr.open(@@(args,"$db"))
 
-        switch @@(context,"$output")
-        {
-            case "text"
-            {
-                output=@@(context,"$text")
+            if fmt == "json" {
+                ref schema:dbm.getSchema(db,@@(args,"$schema"))
             }
-        }
+            else {
+                output = dbm.getDDM(db,@@(args,"$schema"))
+            }
 
-        json_name = file.justname(fout) + ".json"
-        file_json = path.concat(dout,json_name)
-        
-        do file.wtext(file_json,to.json(schema))
+            do dbr.close(db)
+            exception
+            {
+                if isset(db) {
+                    if dbr.is_open(db){ do dbr.close(db) }
+                }
+                do rise_error(last_error_code(),last_error())
+            }
+            break
+        }
+        default { do rise_error(1,"Debe indicar un origen (db, src, a, b).") }
+    }
+
+    switch fmt
+    {
+        case "sql"
+        {
+            new context
+            {
+                @"args*":args
+                @"schema*":schema
+                @"output":"standard" //Si el programa cambia este valor a 'text', el resultado estará en el miembro 'text'
+            }
+
+            output=runscript(gen,"context",context)
+            if @@(context,"$output")=="text" { output=@@(context,"$text") }
+
+            json_name = file.justname(fout) + ".json"
+            file_json = path.concat(dout,json_name)
+            
+            do file.wtext(file_json,to.json(schema))
+            break
+        }
+        case "json"
+        {
+            if not(isnull(schema)) { output=to.json(schema) }
+            break
+        }
     }
     
     do file.wtext(fout,output)
