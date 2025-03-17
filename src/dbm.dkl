@@ -754,7 +754,7 @@ program "dbm"
             }
 
             // Obtener los indices de una tabla.
-            sql_list_indexes = "SELECT i.TABLE_NAME, i.INDEX_NAME, GROUP_CONCAT(i.COLUMN_NAME ORDER BY SEQ_IN_INDEX) AS COLUMN_LIST, i.NON_UNIQUE FROM information_schema.STATISTICS i WHERE i.TABLE_SCHEMA = @TABLE_SCHEMA AND i.TABLE_NAME = @TABLE_NAME GROUP BY i.TABLE_NAME, i.INDEX_NAME;"
+            sql_list_indexes = "SELECT i.TABLE_NAME, i.INDEX_NAME, GROUP_CONCAT(i.COLUMN_NAME ORDER BY SEQ_IN_INDEX) AS COLUMN_LIST, i.NON_UNIQUE FROM information_schema.STATISTICS i WHERE i.TABLE_SCHEMA = @TABLE_SCHEMA AND i.TABLE_NAME = @TABLE_NAME GROUP BY i.TABLE_NAME, i.INDEX_NAME, i.NON_UNIQUE;"
             ref indexes = dbr.list(db,sql_list_indexes,table)
 
             for i = 0; i < list.count(indexes); i+1
